@@ -1,18 +1,16 @@
-# Etapa 1: Build
-FROM eclipse-temurin:21-jdk-jammy AS build
+# Etapa 1: Build usando imagem oficial do Maven
+FROM maven:3.9.5-eclipse-temurin-21 AS build
 WORKDIR /app
 
-# Copia os arquivos de configuração do Maven e as dependências
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-RUN chmod +x ./mvnw
+# Copia o pom.xml e faz o download das dependências (acelera os próximos builds)
+COPY pom.xml .
+RUN mvn dependency:go-offline || true
 
-# Baixa as dependências offline (opcional, acelera builds subsequentes)
-RUN ./mvnw dependency:go-offline || true
-
-# Copia o código-fonte e faz o build
+# Copia o código-fonte
 COPY src ./src
-RUN ./mvnw clean package -DskipTests
+
+# Executa o build sem rodar os testes
+RUN mvn clean package -DskipTests
 
 # Etapa 2: Runtime
 FROM eclipse-temurin:21-jre-jammy

@@ -13,7 +13,6 @@ server:
 app:
   security:
     jwt:
-      secret: ${JWT_SECRET:princesadiaries2026-super-secret-key-that-must-be-long-enough-fallback}
       expiration: 86400000 # 24 horas
 
 springdoc:
