@@ -5,7 +5,7 @@ spring:
     import: optional:file:.env[.properties]
   data:
     mongodb:
-      uri: ${MONGO_URI:mongodb://localhost:27017/convite_db}
+      uri: ${MONGODB_URI:mongodb://localhost:27017/convite_db}
 
 server:
   port: 8080
