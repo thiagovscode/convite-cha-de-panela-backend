@@ -53,8 +53,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Permita a origem do frontend local e uma URL de produção fictícia (que o admin deve alterar depois)
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "https://meuconvitedecha.com"));
+        // Permite qualquer origem (Frontend no GitHub Pages, Vercel, Localhost, etc)
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
