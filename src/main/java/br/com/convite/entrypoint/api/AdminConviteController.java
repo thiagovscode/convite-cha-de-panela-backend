@@ -33,8 +33,28 @@ public class AdminConviteController {
     private final br.com.convite.usecase.SincronizarCortejoConviteUseCase sincronizarCortejoConviteUseCase;
 
     @GetMapping
-    public ResponseEntity<List<Convite>> listar() {
-        return ResponseEntity.ok(listarConvitesUseCase.executar());
+    public ResponseEntity<List<Convite>> listar(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+
+        List<Convite> todos = listarConvitesUseCase.executar();
+        int total = todos != null ? todos.size() : 0;
+
+        if (page != null && size != null && size > 0 && page >= 0 && todos != null) {
+            int fromIndex = Math.min(page * size, total);
+            int toIndex = Math.min(fromIndex + size, total);
+            List<Convite> paginados = todos.subList(fromIndex, toIndex);
+
+            return ResponseEntity.ok()
+                    .header("X-Total-Count", String.valueOf(total))
+                    .header("X-Page", String.valueOf(page))
+                    .header("X-Size", String.valueOf(size))
+                    .body(paginados);
+        }
+
+        return ResponseEntity.ok()
+                .header("X-Total-Count", String.valueOf(total))
+                .body(todos);
     }
 
     @PutMapping("/definir-par")

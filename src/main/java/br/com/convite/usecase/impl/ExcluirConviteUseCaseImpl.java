@@ -19,6 +19,7 @@ public class ExcluirConviteUseCaseImpl implements ExcluirConviteUseCase {
     private final ConviteGateway conviteGateway;
     private final DesvincularParticipantesCortejoUseCase desvincularParticipantesCortejoUseCase;
     private final ExcluirRsvpPorTelefoneUseCase excluirRsvpPorTelefoneUseCase;
+    private final br.com.convite.gateway.RsvpCasamentoGateway rsvpCasamentoGateway;
 
     @Override
     public Convite executar(String codigoOuId) {
@@ -39,12 +40,29 @@ public class ExcluirConviteUseCaseImpl implements ExcluirConviteUseCase {
             desvincularParticipantesCortejoUseCase.executar(convite.getCodigo());
         }
 
-        // 2. Limpa RSVPs associados ao telefone
-        if (convite.getTelefone() != null) {
+        // 2. Limpa RSVPs associados ao telefone do convite
+        if (convite.getTelefone() != null && !convite.getTelefone().isBlank()) {
             excluirRsvpPorTelefoneUseCase.executar(convite.getTelefone());
         }
 
-        // 3. Exclui o convite do banco
+        // 3. Limpa RSVPs de membros da família caso o telefone não estivesse no convite
+        if (convite.getMembros() != null && !convite.getMembros().isEmpty()) {
+            try {
+                var todosRsvps = rsvpCasamentoGateway.listarTodos();
+                for (var m : convite.getMembros()) {
+                    if (m.getNome() != null && !m.getNome().isBlank()) {
+                        String nomeMembro = m.getNome().trim();
+                        todosRsvps.stream()
+                                .filter(r -> r.getNome() != null && r.getNome().trim().equalsIgnoreCase(nomeMembro))
+                                .forEach(r -> rsvpCasamentoGateway.deletar(r.getId()));
+                    }
+                }
+            } catch (Exception ignored) {
+                // Silencioso caso ocorra falha secundária na busca de órfãos
+            }
+        }
+
+        // 4. Exclui o convite do banco
         conviteGateway.excluir(convite);
         return convite;
     }

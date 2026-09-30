@@ -32,6 +32,7 @@ public class RecepcaoCheckinController {
     private final CheckinMembroFornecedorUseCase checkinMembroFornecedorUseCase;
     private final AdicionarMembroFornecedorUseCase adicionarMembroFornecedorUseCase;
     private final AutenticarUsuarioUseCase autenticarUsuarioUseCase;
+    private final br.com.convite.gateway.ConviteGateway conviteGateway;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(
@@ -119,6 +120,32 @@ public class RecepcaoCheckinController {
         resp.put("convite", toFamiliaAuditoria(resultado.convite()));
 
         return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/checkin/{codigo}/reverter")
+    public ResponseEntity<?> reverterCheckinTotal(@PathVariable String codigo) {
+        if (codigo == null || codigo.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Código do convite é obrigatório."));
+        }
+        var opt = conviteGateway.buscarPorCodigo(codigo.trim());
+        if (opt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("success", false, "message", "Convite não encontrado."));
+        }
+        Convite convite = opt.get();
+        if (convite.getMembros() != null) {
+            for (var m : convite.getMembros()) {
+                m.setPresenteCheckin(false);
+                m.setDataHoraCheckin(null);
+                m.setRecepcionista(null);
+            }
+        }
+        convite.setUpdatedAt(java.time.LocalDateTime.now());
+        Convite salvo = conviteGateway.salvar(convite);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Check-in do convite revertido com sucesso.",
+                "convite", toFamiliaAuditoria(salvo)
+        ));
     }
 
     @GetMapping("/auditoria")
