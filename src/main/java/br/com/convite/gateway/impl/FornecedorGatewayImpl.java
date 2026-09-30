@@ -20,7 +20,11 @@ public class FornecedorGatewayImpl implements FornecedorGateway {
 
     @Override
     public List<Fornecedor> listarTodos() {
-        return mapper.toDomainList(repository.findAll());
+        try {
+            return mapper.toDomainList(repository.findAll());
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 
     @Override

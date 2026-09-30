@@ -148,12 +148,13 @@ public class RestExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleErroGenerico(Exception ex, HttpServletRequest request) {
         log.error("Erro interno inesperado [{}]", request.getRequestURI(), ex);
+        String detalhe = ex.getMessage() != null && !ex.getMessage().isBlank() ? ex.getMessage() : ex.getClass().getSimpleName();
         ApiErrorResponse body = ApiErrorResponse.builder()
                 .success(false)
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .error(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase())
-                .message("Ocorreu um erro interno ao processar a requisição. Tente novamente mais tarde.")
+                .message("Ocorreu um erro interno ao processar a requisição: " + detalhe)
                 .path(request.getRequestURI())
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);

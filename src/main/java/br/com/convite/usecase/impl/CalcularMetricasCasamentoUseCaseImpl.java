@@ -77,16 +77,23 @@ public class CalcularMetricasCasamentoUseCaseImpl implements CalcularMetricasCas
 
         // Membros de fornecedores que permanecem até o fim contam como convidados confirmados
         if (fornecedorGateway != null) {
-            for (br.com.convite.domain.Fornecedor f : fornecedorGateway.listarTodos()) {
-                if (f.getEquipe() != null) {
-                    for (br.com.convite.domain.MembroEquipeFornecedor m : f.getEquipe()) {
-                        if (Boolean.TRUE.equals(m.getPermaneceAteFim())) {
-                            totalPessoas++;
-                            totalAdultosConfirmados++;
-                            totalConfirmados++;
+            try {
+                List<br.com.convite.domain.Fornecedor> fornecedores = fornecedorGateway.listarTodos();
+                if (fornecedores != null) {
+                    for (br.com.convite.domain.Fornecedor f : fornecedores) {
+                        if (f != null && f.getEquipe() != null) {
+                            for (br.com.convite.domain.MembroEquipeFornecedor m : f.getEquipe()) {
+                                if (m != null && Boolean.TRUE.equals(m.getPermaneceAteFim())) {
+                                    totalPessoas++;
+                                    totalAdultosConfirmados++;
+                                    totalConfirmados++;
+                                }
+                            }
                         }
                     }
                 }
+            } catch (Exception ignored) {
+                // Falha ao carregar fornecedores não deve inviabilizar métricas do casamento
             }
         }
 

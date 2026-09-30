@@ -85,23 +85,30 @@ public class GerarRelatorioAuditoriaUseCaseImpl implements GerarRelatorioAuditor
 
         // Membros de fornecedores que permanecem até o fim contam como convidados
         if (fornecedorGateway != null) {
-            for (br.com.convite.domain.Fornecedor f : fornecedorGateway.listarTodos()) {
-                if (f.getEquipe() != null) {
-                    for (br.com.convite.domain.MembroEquipeFornecedor m : f.getEquipe()) {
-                        if (Boolean.TRUE.equals(m.getPermaneceAteFim())) {
-                            totalConvidadosPrevistos++;
-                            totalAdultosPrevistos++;
-                            totalConfirmadosRsvp++;
-                            totalAdultosConfirmados++;
-                            if (Boolean.TRUE.equals(m.getPresente())) {
-                                totalPresentesReais++;
-                                totalAdultosPresentes++;
-                            } else {
-                                totalAguardandoChegada++;
+            try {
+                List<br.com.convite.domain.Fornecedor> fornecedores = fornecedorGateway.listarTodos();
+                if (fornecedores != null) {
+                    for (br.com.convite.domain.Fornecedor f : fornecedores) {
+                        if (f != null && f.getEquipe() != null) {
+                            for (br.com.convite.domain.MembroEquipeFornecedor m : f.getEquipe()) {
+                                if (m != null && Boolean.TRUE.equals(m.getPermaneceAteFim())) {
+                                    totalConvidadosPrevistos++;
+                                    totalAdultosPrevistos++;
+                                    totalConfirmadosRsvp++;
+                                    totalAdultosConfirmados++;
+                                    if (Boolean.TRUE.equals(m.getPresente())) {
+                                        totalPresentesReais++;
+                                        totalAdultosPresentes++;
+                                    } else {
+                                        totalAguardandoChegada++;
+                                    }
+                                }
                             }
                         }
                     }
                 }
+            } catch (Exception ignored) {
+                // Falha ao carregar fornecedores não deve inviabilizar o relatório de auditoria
             }
         }
 

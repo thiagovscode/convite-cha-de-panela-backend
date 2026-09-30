@@ -5,23 +5,46 @@ import br.com.convite.gateway.ConviteGateway;
 import br.com.convite.gateway.persistence.ConviteCasamentoRepository;
 import br.com.convite.gateway.persistence.entity.ConviteCasamentoEntity;
 import br.com.convite.mapper.ConviteMapper;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
+@Slf4j
 @Component
-@RequiredArgsConstructor
 public class ConviteGatewayImpl implements ConviteGateway {
 
     private final ConviteCasamentoRepository repository;
     private final ConviteMapper mapper;
+    private final MongoTemplate mongoTemplate;
+
+    public ConviteGatewayImpl(
+            ConviteCasamentoRepository repository,
+            ConviteMapper mapper,
+            @Autowired(required = false) MongoTemplate mongoTemplate) {
+        this.repository = repository;
+        this.mapper = mapper;
+        this.mongoTemplate = mongoTemplate;
+    }
 
     @Override
     public List<Convite> listarTodos() {
-        return mapper.toDomainList(repository.findAll());
+        try {
+            return mapper.toDomainList(repository.findAll());
+        } catch (Exception ex) {
+            log.error("Erro ao listar convites via repository.findAll(): {}. Ativando recuperação documento a documento...", ex.getMessage());
+            if (mongoTemplate != null) {
+                return listarTodosResiliente();
+            }
+            return Collections.emptyList();
+        }
     }
 
     @Override
@@ -138,5 +161,77 @@ public class ConviteGatewayImpl implements ConviteGateway {
     @Override
     public long contarTotal() {
         return repository.count();
+    }
+
+    private List<Convite> listarTodosResiliente() {
+        List<Convite> resultado = new ArrayList<>();
+        try {
+            for (org.bson.Document doc : mongoTemplate.getCollection("convites").find()) {
+                try {
+                    ConviteCasamentoEntity entity = mongoTemplate.getConverter().read(ConviteCasamentoEntity.class, doc);
+                    resultado.add(mapper.toDomain(entity));
+                } catch (Exception docEx) {
+                    log.warn("Documento de convite com formato divergente recuperado com mapeamento seguro [_id: {}, codigo: {}]: {}",
+                            doc.get("_id"), doc.get("codigo"), docEx.getMessage());
+                    try {
+                        resultado.add(recuperarConviteDeDocumentoBson(doc));
+                    } catch (Exception fallbackEx) {
+                        log.error("Falha ao recuperar convite básico [_id: {}]: {}", doc.get("_id"), fallbackEx.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Falha critica no fallback resiliente de convites: {}", e.getMessage(), e);
+        }
+        return resultado;
+    }
+
+    private Convite recuperarConviteDeDocumentoBson(org.bson.Document doc) {
+        String id = doc.get("_id") != null ? String.valueOf(doc.get("_id")) : null;
+        String codigo = doc.getString("codigo");
+        String familia = doc.getString("familia");
+        String telefone = doc.getString("telefone");
+        String email = doc.getString("email");
+        String status = doc.getString("status") != null ? doc.getString("status") : "PENDENTE";
+        String papel = doc.getString("papel");
+        String observacao = doc.getString("observacao");
+
+        List<br.com.convite.domain.MembroConvite> membros = new ArrayList<>();
+        Object membrosRaw = doc.get("membros");
+        if (membrosRaw instanceof List<?> lista) {
+            for (Object item : lista) {
+                if (item instanceof org.bson.Document mDoc) {
+                    String mId = mDoc.get("_id") != null ? String.valueOf(mDoc.get("_id"))
+                            : (mDoc.get("id") != null ? String.valueOf(mDoc.get("id")) : UUID.randomUUID().toString());
+                    String mNome = mDoc.getString("nome");
+                    Boolean crianca = Boolean.TRUE.equals(mDoc.get("criancaAte6Anos"));
+                    Boolean rsvp = mDoc.get("confirmadoRsvp") != null ? Boolean.TRUE.equals(mDoc.get("confirmadoRsvp")) : null;
+                    Boolean checkin = Boolean.TRUE.equals(mDoc.get("presenteCheckin"));
+                    membros.add(br.com.convite.domain.MembroConvite.builder()
+                            .id(mId)
+                            .nome(mNome != null ? mNome : "")
+                            .criancaAte6Anos(crianca)
+                            .confirmadoRsvp(rsvp)
+                            .presenteCheckin(checkin)
+                            .papel(mDoc.getString("papel"))
+                            .vinculo(mDoc.getString("vinculo"))
+                            .par(mDoc.getString("par"))
+                            .participaCortejo(Boolean.TRUE.equals(mDoc.get("participaCortejo")))
+                            .build());
+                }
+            }
+        }
+
+        return Convite.builder()
+                .id(id)
+                .codigo(codigo)
+                .familia(familia)
+                .telefone(telefone)
+                .email(email)
+                .status(status)
+                .papel(papel)
+                .observacao(observacao)
+                .membros(membros)
+                .build();
     }
 }

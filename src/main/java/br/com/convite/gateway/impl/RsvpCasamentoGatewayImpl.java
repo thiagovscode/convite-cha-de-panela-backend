@@ -56,9 +56,13 @@ public class RsvpCasamentoGatewayImpl implements RsvpCasamentoGateway {
 
     @Override
     public List<RsvpCasamento> listarTodos() {
-        return repository.findAll().stream()
-                .map(mapper::toDomain)
-                .collect(Collectors.toList());
+        try {
+            return repository.findAll().stream()
+                    .map(mapper::toDomain)
+                    .collect(Collectors.toList());
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 
     @Override
