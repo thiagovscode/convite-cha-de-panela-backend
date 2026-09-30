@@ -5,4 +5,5 @@ import java.util.Optional;
 
 public interface UsuarioGateway {
     Optional<Usuario> buscarPorUsername(String username);
+    Usuario salvar(Usuario usuario);
 }

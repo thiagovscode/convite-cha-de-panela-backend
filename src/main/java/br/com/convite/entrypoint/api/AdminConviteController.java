@@ -1,0 +1,183 @@
+package br.com.convite.entrypoint.api;
+
+import br.com.convite.domain.Convite;
+import br.com.convite.domain.MembroConvite;
+import br.com.convite.domain.MetricasCasamento;
+import br.com.convite.entrypoint.api.model.DashboardMetricasResponse;
+import br.com.convite.entrypoint.api.model.MembroAdminRequest;
+import br.com.convite.entrypoint.api.model.SalvarConviteAdminRequest;
+import br.com.convite.usecase.CalcularMetricasCasamentoUseCase;
+import br.com.convite.usecase.ExcluirConviteUseCase;
+import br.com.convite.usecase.ListarConvitesUseCase;
+import br.com.convite.usecase.SalvarConviteUseCase;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/admin/convites")
+@RequiredArgsConstructor
+public class AdminConviteController {
+
+    private final ListarConvitesUseCase listarConvitesUseCase;
+    private final SalvarConviteUseCase salvarConviteUseCase;
+    private final ExcluirConviteUseCase excluirConviteUseCase;
+    private final CalcularMetricasCasamentoUseCase calcularMetricasCasamentoUseCase;
+    private final br.com.convite.gateway.ConviteGateway conviteGateway;
+    private final br.com.convite.usecase.SincronizarCortejoConviteUseCase sincronizarCortejoConviteUseCase;
+
+    @GetMapping
+    public ResponseEntity<List<Convite>> listar() {
+        return ResponseEntity.ok(listarConvitesUseCase.executar());
+    }
+
+    @PutMapping("/definir-par")
+    public ResponseEntity<?> definirPar(@RequestBody Map<String, String> body) {
+        String codigoConvite = body.get("codigoConvite");
+        String membroId = body.get("membroId");
+        String nomeMembro = body.get("nomeMembro");
+        String nomePar = body.get("nomePar");
+
+        java.util.Optional<Convite> optConvite = java.util.Optional.empty();
+        if (codigoConvite != null && !codigoConvite.isBlank()) {
+            optConvite = conviteGateway.buscarPorCodigo(codigoConvite.trim());
+        }
+        if (optConvite.isEmpty() && nomeMembro != null && !nomeMembro.isBlank()) {
+            optConvite = conviteGateway.listarTodos().stream()
+                    .filter(c -> c.getMembros() != null && c.getMembros().stream().anyMatch(m -> nomeMembro.equalsIgnoreCase(m.getNome())))
+                    .findFirst();
+        }
+
+        if (optConvite.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("success", false, "message", "Convite não encontrado."));
+        }
+
+        Convite convitePrincipal = optConvite.get();
+        String finalNomeMembro = nomeMembro;
+
+        if (convitePrincipal.getMembros() != null) {
+            for (MembroConvite m : convitePrincipal.getMembros()) {
+                boolean match = (membroId != null && membroId.equals(m.getId())) 
+                        || (finalNomeMembro != null && finalNomeMembro.equalsIgnoreCase(m.getNome()));
+                if (match) {
+                    m.setPar(nomePar != null && !nomePar.isBlank() ? nomePar.trim() : null);
+                    if (finalNomeMembro == null) finalNomeMembro = m.getNome();
+                }
+            }
+            conviteGateway.salvar(convitePrincipal);
+            sincronizarCortejoConviteUseCase.executar(convitePrincipal);
+        }
+
+        // Se informou um par, atualiza reciprocamente no convite do par se existir cadastrado
+        if (nomePar != null && !nomePar.isBlank() && finalNomeMembro != null) {
+            String buscaPar = nomePar.trim();
+            for (Convite outro : conviteGateway.listarTodos()) {
+                if (!outro.getCodigo().equalsIgnoreCase(convitePrincipal.getCodigo()) && outro.getMembros() != null) {
+                    boolean alterou = false;
+                    for (MembroConvite m : outro.getMembros()) {
+                        if (buscaPar.equalsIgnoreCase(m.getNome())) {
+                            m.setPar(finalNomeMembro);
+                            alterou = true;
+                        }
+                    }
+                    if (alterou) {
+                        conviteGateway.salvar(outro);
+                        sincronizarCortejoConviteUseCase.executar(outro);
+                    }
+                }
+            }
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Par do cortejo atualizado com sucesso!",
+                "convite", convitePrincipal
+        ));
+    }
+
+    @PostMapping
+    public ResponseEntity<?> salvarOuAtualizar(@Valid @RequestBody SalvarConviteAdminRequest req) {
+        Convite dados = Convite.builder()
+                .codigo(req.getCodigo())
+                .familia(req.getFamilia())
+                .telefone(req.getTelefone())
+                .email(req.getEmail())
+                .papel(req.getPapel())
+                .observacao(req.getObservacao())
+                .membros(req.getMembros() != null ? req.getMembros().stream()
+                        .map(this::toMembroDomain)
+                        .collect(Collectors.toList()) : null)
+                .build();
+
+        Convite salvo = salvarConviteUseCase.executar(dados);
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("success", true);
+        resp.put("message", "Convite salvo com sucesso!");
+        resp.put("codigo", salvo.getCodigo());
+        resp.put("convite", salvo);
+
+        return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/cadastrar")
+    public ResponseEntity<?> cadastrar(@Valid @RequestBody SalvarConviteAdminRequest req) {
+        return salvarOuAtualizar(req);
+    }
+
+    @DeleteMapping("/{codigoOuId}")
+    public ResponseEntity<?> excluir(@PathVariable String codigoOuId) {
+        Convite excluido = excluirConviteUseCase.executar(codigoOuId);
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("success", true);
+        resp.put("message", "Convite da " + excluido.getFamilia() + " excluído com sucesso!");
+        resp.put("codigo", excluido.getCodigo());
+        resp.put("familia", excluido.getFamilia());
+
+        return ResponseEntity.ok(resp);
+    }
+
+    @GetMapping("/metricas")
+    public ResponseEntity<DashboardMetricasResponse> obterMetricas() {
+        MetricasCasamento m = calcularMetricasCasamentoUseCase.executar();
+        return ResponseEntity.ok(toMetricasResponse(m));
+    }
+
+    private DashboardMetricasResponse toMetricasResponse(MetricasCasamento m) {
+        return DashboardMetricasResponse.builder()
+                .totalConvites(m.getTotalConvites())
+                .totalConvitesConfirmados(m.getTotalConvitesConfirmados())
+                .totalConvitesRecusados(m.getTotalConvitesRecusados())
+                .totalConvitesPendentes(m.getTotalConvitesPendentes())
+                .totalPessoas(m.getTotalPessoas())
+                .totalConfirmados(m.getTotalConfirmados())
+                .totalRecusaram(m.getTotalRecusaram())
+                .totalPendentes(m.getTotalPendentes())
+                .totalAdultosConfirmados(m.getTotalAdultosConfirmados())
+                .totalCriancasConfirmadas(m.getTotalCriancasConfirmadas())
+                .taxaConfirmacao(m.getTaxaConfirmacao())
+                .taxaRecusa(m.getTaxaRecusa())
+                .taxaPendentes(m.getTaxaPendentes())
+                .taxaPresencaRespondidos(m.getTaxaPresencaRespondidos())
+                .build();
+    }
+
+    private MembroConvite toMembroDomain(MembroAdminRequest req) {
+        return MembroConvite.builder()
+                .id(req.getId())
+                .nome(req.getNome())
+                .criancaAte6Anos(Boolean.TRUE.equals(req.getCriancaAte6Anos()))
+                .papel(req.getPapel())
+                .vinculo(req.getVinculo())
+                .par(req.getPar())
+                .participaCortejo(req.getParticipaCortejo())
+                .build();
+    }
+}

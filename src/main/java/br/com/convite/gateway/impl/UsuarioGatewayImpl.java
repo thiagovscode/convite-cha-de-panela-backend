@@ -21,4 +21,11 @@ public class UsuarioGatewayImpl implements UsuarioGateway {
         return usuarioRepository.findByUsername(username)
                 .map(usuarioMapper::toDomain);
     }
+
+    @Override
+    public Usuario salvar(Usuario usuario) {
+        var entity = usuarioMapper.toEntity(usuario);
+        var salvo = usuarioRepository.save(entity);
+        return usuarioMapper.toDomain(salvo);
+    }
 }

@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Document(collection = "usuarios")
 public class UsuarioEntity {
     @Id
-    private Long id;
+    private String id;
     
     private String username;
     private String password;

@@ -86,7 +86,7 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
         if (!Boolean.TRUE.equals(presenca)) {
             if (acompFinal.isEmpty() && convite.getMembros() != null) {
                 for (MembroConvite m : convite.getMembros()) {
-                    if (!Boolean.TRUE.equals(m.getTitular()) && (nome == null || !nome.equalsIgnoreCase(m.getNome()))) {
+                    if (nome == null || !nome.equalsIgnoreCase(m.getNome())) {
                         acompFinal.add(AcompanhanteCasamento.builder()
                                 .nome(m.getNome())
                                 .criancaAte6Anos(m.getCriancaAte6Anos())
@@ -174,14 +174,14 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
                     m.setConfirmadoRsvp(false);
                 } else {
                     String mClean = limparNomeParaComparacao(m.getNome());
-                    String titularClean = rsvp.getNome() != null ? limparNomeParaComparacao(rsvp.getNome()) : "";
+                    String respondenteClean = rsvp.getNome() != null ? limparNomeParaComparacao(rsvp.getNome()) : "";
 
                     boolean confirmado;
                     if (m.getId() != null && !m.getId().isBlank() && !idsConfirmados.isEmpty()) {
-                        // Confirma se o ID estiver nos selecionados ou se o nome bater com o contato principal
-                        confirmado = idsConfirmados.contains(m.getId()) || titularClean.equals(mClean) || nomesConfirmados.contains(mClean);
+                        // Confirma se o ID estiver nos selecionados ou se o nome bater com o contato respondente
+                        confirmado = idsConfirmados.contains(m.getId()) || respondenteClean.equals(mClean) || nomesConfirmados.contains(mClean);
                     } else {
-                        confirmado = nomesConfirmados.contains(mClean) || titularClean.equals(mClean);
+                        confirmado = nomesConfirmados.contains(mClean) || respondenteClean.equals(mClean);
                     }
                     m.setConfirmadoRsvp(confirmado);
 

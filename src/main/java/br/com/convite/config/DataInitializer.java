@@ -1,96 +1,472 @@
 package br.com.convite.config;
 
-import br.com.convite.gateway.persistence.PresenteRepository;
 import br.com.convite.gateway.persistence.UsuarioRepository;
-import br.com.convite.gateway.persistence.entity.PresenteEntity;
 import br.com.convite.gateway.persistence.entity.UsuarioEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
 import org.springframework.beans.factory.annotation.Value;
+
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
     private final UsuarioRepository usuarioRepository;
-    private final PresenteRepository presenteRepository;
+    private final br.com.convite.gateway.persistence.ConviteCasamentoRepository conviteRepository;
+    private final br.com.convite.gateway.persistence.ParticipanteCerimoniaRepository participanteRepository;
+    private final br.com.convite.gateway.persistence.FornecedorCasamentoRepository fornecedorRepository;
+    private final br.com.convite.gateway.persistence.PapelParticipanteRepository papelRepository;
+    private final br.com.convite.gateway.persistence.VinculoParticipanteRepository vinculoRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${ADMIN_PASSWORD:admin123}")
+    @Value("${ADMIN_PASSWORD:Balboa@2027#N}")
     private String adminPassword;
+
+    @Value("${RECEPCAO_PASSWORD:Recepcao@2027!}")
+    private String recepcaoPassword;
 
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        // Inicializa o admin se não existir
-        if (usuarioRepository.count() == 0) {
-            usuarioRepository.save(UsuarioEntity.builder()
-                    .id(1L)
-                    .username("admin")
-                    .password(passwordEncoder.encode(adminPassword))
-                    .role("ADMIN")
-                    .build());
-            System.out.println("✅ Usuário admin criado com a senha segura das variáveis de ambiente.");
+        // Garante as novas senhas definidas
+        String finalAdminPass = "Balboa@2027#N";
+        if (adminPassword != null && !adminPassword.isBlank() 
+                && !adminPassword.equals("03112023") 
+                && !adminPassword.equals("admin123")
+                && !adminPassword.equals("Balboa@2027")) {
+            finalAdminPass = adminPassword.trim();
         }
 
-        // Limpa os presentes antigos para garantir a nova lista
-        presenteRepository.deleteAll();
+        String finalRecepcaoPass = "Recepcao@2027!";
+        if (recepcaoPassword != null && !recepcaoPassword.isBlank()
+                && !recepcaoPassword.equals("recepcao123")
+                && !recepcaoPassword.equals("recepcao2027")) {
+            finalRecepcaoPass = recepcaoPassword.trim();
+        }
 
-        if (presenteRepository.count() == 0) {
-            List<PresenteEntity> presentes = List.of(
-                // Cama, Mesa e Banho
-                createPresente(1L, "Jogo de Toalhas de Banho", "Cama e Banho", "Branco", 2, "./images/cat_cama.jpg"),
-                createPresente(2L, "Jogo de Lençol Casal", "Cama e Banho", "Branco", 2, "./images/cat_cama.jpg"),
-                
-                // Servir e Mesa Posta
-                createPresente(3L, "Aparelho de Jantar", "Servir", "Branco", 2, "./images/cat_servir.jpg"),
-                createPresente(4L, "Jogo de Taças de Água", "Servir", "Creme", 2, "./images/cat_servir.jpg"),
-                createPresente(5L, "Jogo de Taças de Vinho", "Servir", "Creme", 2, "./images/cat_servir.jpg"),
-                createPresente(6L, "Xícaras de Chá com Pires", "Servir", "Rosa Antigo", 2, "./images/cat_servir.jpg"),
-                createPresente(7L, "Potes Herméticos de Vidro", "Utensílios", "Branco", 2, "./images/cat_utensilios.jpg"),
+        // 1. Usuário Administrador (Painel dos Noivos)
+        List<UsuarioEntity> admins = usuarioRepository.findAllByUsernameIgnoreCase("admin");
 
-                // Itens Únicos ou Eletrodomésticos
-                createPresente(8L, "Faqueiro Dourado", "Servir", "Dourado", 1, "./images/cat_servir.jpg"),
-                createPresente(9L, "Jarra de Cristal", "Servir", "Creme", 1, "./images/cat_servir.jpg"),
-                
-                // Panelas e Cocção
-                createPresente(10L, "Jogo de Panelas Antiaderentes", "Panelas", "Rosa", 2, "./images/cat_utensilios.jpg"),
-                createPresente(11L, "Panela de Pressão", "Panelas", "Creme", 1, "./images/cat_utensilios.jpg"),
-                createPresente(12L, "Conjunto de Assadeiras", "Panelas", "Rosa", 1, "./images/cat_utensilios.jpg"),
+        if (admins.isEmpty()) {
+            UsuarioEntity admin = UsuarioEntity.builder()
+                    .id("1")
+                    .username("admin")
+                    .role("ADMIN")
+                    .password(passwordEncoder.encode(finalAdminPass))
+                    .build();
+            usuarioRepository.save(admin);
+            System.out.println("✅ Usuário admin criado pela primeira vez com a senha nova.");
+        } else {
+            UsuarioEntity admin = admins.get(0);
+            if (admins.size() > 1) {
+                for (int i = 1; i < admins.size(); i++) {
+                    usuarioRepository.delete(admins.get(i));
+                }
+                System.out.println("🧹 Limpeza de usuários duplicados 'admin' no banco concluída.");
+            }
 
-                // Utensílios de Preparo
-                createPresente(13L, "Jogo de Facas do Chef", "Utensílios", "Preto", 1, "./images/cat_utensilios.jpg"),
-                createPresente(14L, "Tábua de Corte Profissional", "Utensílios", "Dourado", 1, "./images/cat_utensilios.jpg"),
-                createPresente(15L, "Kit Utensílios de Silicone", "Utensílios", "Rosa", 1, "./images/cat_utensilios.jpg"),
-                createPresente(16L, "Escorredor de Louça", "Utensílios", "Dourado", 1, "./images/cat_utensilios.jpg"),
-                createPresente(17L, "Porta-Temperos Giratório", "Utensílios", "Branco", 1, "./images/cat_utensilios.jpg"),
+            // Sincroniza e garante incondicionalmente a senha atualizada no banco de dados
+            admin.setUsername("admin");
+            admin.setRole("ADMIN");
+            admin.setPassword(passwordEncoder.encode(finalAdminPass));
+            usuarioRepository.save(admin);
+            System.out.println("🔑 Senha do admin sincronizada e atualizada com sucesso no banco de dados.");
+        }
 
-                // Eletroportáteis
-                createPresente(18L, "Chaleira Elétrica", "Eletrodomésticos", "Creme", 1, "./images/cat_utensilios.jpg"),
-                createPresente(19L, "Liquidificador Retrô", "Eletrodomésticos", "Branco", 1, "./images/cat_utensilios.jpg")
-            );
-            presenteRepository.saveAll(presentes);
-            System.out.println("✅ " + presentes.size() + " itens únicos inseridos (capacidade lógica para 26 reservas).");
+        // 2. Usuário de Recepção (Portaria)
+        List<UsuarioEntity> recepcoes = usuarioRepository.findAllByUsernameIgnoreCase("recepcao");
+
+        if (recepcoes.isEmpty()) {
+            UsuarioEntity recepcao = UsuarioEntity.builder()
+                    .id("2")
+                    .username("recepcao")
+                    .role("RECEPCAO")
+                    .password(passwordEncoder.encode(finalRecepcaoPass))
+                    .build();
+            usuarioRepository.save(recepcao);
+            System.out.println("✅ Usuário recepção criado pela primeira vez com a senha nova.");
+        } else {
+            UsuarioEntity recepcao = recepcoes.get(0);
+            if (recepcoes.size() > 1) {
+                for (int i = 1; i < recepcoes.size(); i++) {
+                    usuarioRepository.delete(recepcoes.get(i));
+                }
+                System.out.println("🧹 Limpeza de usuários duplicados 'recepcao' no banco concluída.");
+            }
+
+            // Sincroniza e garante incondicionalmente a senha atualizada no banco de dados
+            recepcao.setUsername("recepcao");
+            recepcao.setRole("RECEPCAO");
+            recepcao.setPassword(passwordEncoder.encode(finalRecepcaoPass));
+            usuarioRepository.save(recepcao);
+            // DataInitializer: apenas usuários são inicializados, conforme solicitado.
+            // As collections de convites, participantes e fornecedores ficam livres para o cadastro real.
         }
     }
 
-    private PresenteEntity createPresente(Long id, String nome, String categoria, String cor, int maxQtd, String imagem) {
-        return PresenteEntity.builder()
-                .id(id)
-                .nome(nome)
-                .imagem(imagem)
-                .categoria(categoria)
-                .cor(cor)
-                .descricao("Um item especial escolhido com muito carinho para a nossa casa.")
-                .linkCompra("")
-                .maxQuantity(maxQtd)
-                .activeReservationsCount(0)
-                .esgotado(false)
-                .build();
+    private void inicializarConvitesDemonstracao() {
+        if (conviteRepository.count() == 0) {
+            var convite1 = br.com.convite.gateway.persistence.entity.ConviteCasamentoEntity.builder()
+                    .codigo("fulana")
+                    .familia("Fulana da Silva e Família")
+                    .telefone("(11) 98888-7777")
+                    .status("PENDENTE")
+                    .createdAt(java.time.LocalDateTime.now())
+                    .membros(List.of(
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("1")
+                                    .nome("Fulana da Silva")
+                                    .criancaAte6Anos(false)
+                                    .build(),
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("2")
+                                    .nome("Lucas Silva (Filho)")
+                                    .criancaAte6Anos(true)
+                                    .build(),
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("3")
+                                    .nome("Matheus Silva (Filho)")
+                                    .criancaAte6Anos(false)
+                                    .build()
+                    ))
+                    .build();
+
+            var convite2 = br.com.convite.gateway.persistence.entity.ConviteCasamentoEntity.builder()
+                    .codigo("padrinhos-joao")
+                    .familia("João e Mariana (Padrinhos)")
+                    .telefone("(11) 97777-6666")
+                    .papel("Padrinhos dos Noivos")
+                    .status("PENDENTE")
+                    .createdAt(java.time.LocalDateTime.now())
+                    .membros(List.of(
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("p1")
+                                    .nome("João Pedro Santos")
+                                    .papel("Padrinho")
+                                    .vinculo("Noivo")
+                                    .criancaAte6Anos(false)
+                                    .build(),
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("p2")
+                                    .nome("Mariana Alencar")
+                                    .papel("Madrinha")
+                                    .vinculo("Noiva")
+                                    .criancaAte6Anos(false)
+                                    .build()
+                    ))
+                    .build();
+
+            var convite3 = br.com.convite.gateway.persistence.entity.ConviteCasamentoEntity.builder()
+                    .codigo("fam-vasconcelos")
+                    .familia("Família Vasconcelos (Pais do Noivo)")
+                    .telefone("(11) 99999-5555")
+                    .papel("Pais do Noivo")
+                    .status("PENDENTE")
+                    .createdAt(java.time.LocalDateTime.now())
+                    .membros(List.of(
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("v1")
+                                    .nome("Carlos Vasconcelos")
+                                    .papel("Pai do Noivo")
+                                    .vinculo("Noivo")
+                                    .criancaAte6Anos(false)
+                                    .build(),
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("v2")
+                                    .nome("Clara Vasconcelos")
+                                    .papel("Mãe do Noivo")
+                                    .vinculo("Noivo")
+                                    .criancaAte6Anos(false)
+                                    .build(),
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("v3")
+                                    .nome("Sofia Vasconcelos")
+                                    .papel("Daminha / Família")
+                                    .vinculo("Noivo")
+                                    .criancaAte6Anos(true)
+                                    .build()
+                    ))
+                    .build();
+
+            var convite4 = br.com.convite.gateway.persistence.entity.ConviteCasamentoEntity.builder()
+                    .codigo("misael")
+                    .familia("Misael & Família (Padrinho)")
+                    .telefone("(11) 98888-1122")
+                    .papel("Padrinho do Noivo")
+                    .status("PENDENTE")
+                    .createdAt(java.time.LocalDateTime.now())
+                    .membros(List.of(
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("m1")
+                                    .nome("Misael")
+                                    .papel("Padrinho")
+                                    .vinculo("Noivo")
+                                    .criancaAte6Anos(false)
+                                    .build(),
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("m2")
+                                    .nome("Dona Lúcia (Mãe do Misael)")
+                                    .criancaAte6Anos(false)
+                                    .build()
+                    ))
+                    .build();
+
+            var convite5 = br.com.convite.gateway.persistence.entity.ConviteCasamentoEntity.builder()
+                    .codigo("anie")
+                    .familia("Anie Oliveira (Madrinha)")
+                    .telefone("(11) 97777-3344")
+                    .papel("Madrinha da Noiva")
+                    .status("PENDENTE")
+                    .createdAt(java.time.LocalDateTime.now())
+                    .membros(List.of(
+                            br.com.convite.gateway.persistence.entity.MembroConviteEntity.builder()
+                                    .id("a1")
+                                    .nome("Anie")
+                                    .papel("Madrinha")
+                                    .vinculo("Noiva")
+                                    .criancaAte6Anos(false)
+                                    .build()
+                    ))
+                    .build();
+
+            conviteRepository.saveAll(List.of(convite1, convite2, convite3, convite4, convite5));
+            System.out.println("✅ Convites modelo de demonstração inicializados com sucesso.");
+        }
+    }
+
+    private void inicializarParticipantesDemonstracao() {
+        if (participanteRepository.count() == 0) {
+            var agora = java.time.LocalDateTime.now();
+            var p1 = br.com.convite.gateway.persistence.entity.ParticipanteCerimoniaEntity.builder()
+                    .nome("Maria Santos")
+                    .papel("Madrinha")
+                    .vinculo("Noivo")
+                    .par("Lucas Santos")
+                    .telefone("(11) 98777-1111")
+                    .codigoConvite("padrinhos-joao")
+                    .confirmadoRsvp(true)
+                    .presenteCheckin(false)
+                    .createdAt(agora)
+                    .build();
+
+            var p2 = br.com.convite.gateway.persistence.entity.ParticipanteCerimoniaEntity.builder()
+                    .nome("João Pedro Santos")
+                    .papel("Padrinho")
+                    .vinculo("Noivo")
+                    .par("Mariana Alencar")
+                    .telefone("(11) 97777-6666")
+                    .codigoConvite("padrinhos-joao")
+                    .confirmadoRsvp(true)
+                    .presenteCheckin(false)
+                    .createdAt(agora)
+                    .build();
+
+            var p3 = br.com.convite.gateway.persistence.entity.ParticipanteCerimoniaEntity.builder()
+                    .nome("Mariana Alencar")
+                    .papel("Madrinha")
+                    .vinculo("Noiva")
+                    .par("João Pedro Santos")
+                    .telefone("(11) 97777-6666")
+                    .codigoConvite("padrinhos-joao")
+                    .confirmadoRsvp(false)
+                    .presenteCheckin(false)
+                    .createdAt(agora)
+                    .build();
+
+            var p4 = br.com.convite.gateway.persistence.entity.ParticipanteCerimoniaEntity.builder()
+                    .nome("Carlos Vasconcelos")
+                    .papel("Pai do Noivo")
+                    .vinculo("Noivo")
+                    .par("Clara Vasconcelos")
+                    .telefone("(11) 99999-5555")
+                    .codigoConvite("fam-vasconcelos")
+                    .confirmadoRsvp(true)
+                    .presenteCheckin(false)
+                    .createdAt(agora)
+                    .build();
+
+            var p5 = br.com.convite.gateway.persistence.entity.ParticipanteCerimoniaEntity.builder()
+                    .nome("Clara Vasconcelos")
+                    .papel("Mãe do Noivo")
+                    .vinculo("Noivo")
+                    .par("Carlos Vasconcelos")
+                    .telefone("(11) 99999-5555")
+                    .codigoConvite("fam-vasconcelos")
+                    .confirmadoRsvp(true)
+                    .presenteCheckin(false)
+                    .createdAt(agora)
+                    .build();
+
+            var p6 = br.com.convite.gateway.persistence.entity.ParticipanteCerimoniaEntity.builder()
+                    .nome("Misael")
+                    .papel("Padrinho")
+                    .vinculo("Noivo")
+                    .par("Anie")
+                    .telefone("(11) 98888-1122")
+                    .codigoConvite("misael")
+                    .confirmadoRsvp(false)
+                    .presenteCheckin(false)
+                    .createdAt(agora)
+                    .build();
+
+            var p7 = br.com.convite.gateway.persistence.entity.ParticipanteCerimoniaEntity.builder()
+                    .nome("Anie")
+                    .papel("Madrinha")
+                    .vinculo("Noiva")
+                    .par("Misael")
+                    .telefone("(11) 97777-3344")
+                    .codigoConvite("anie")
+                    .confirmadoRsvp(false)
+                    .presenteCheckin(false)
+                    .createdAt(agora)
+                    .build();
+
+            participanteRepository.saveAll(List.of(p1, p2, p3, p4, p5, p6, p7));
+            System.out.println("✅ Participantes da cerimônia (cortejo) inicializados.");
+        }
+    }
+
+    private void inicializarFornecedoresDemonstracao() {
+        if (fornecedorRepository.count() == 0) {
+            var agora = java.time.LocalDateTime.now();
+            var f1 = br.com.convite.gateway.persistence.entity.FornecedorCasamentoEntity.builder()
+                    .nome("Luciano")
+                    .responsavel("Luciano")
+                    .papel("Fornecedor")
+                    .categoria("Música & Som")
+                    .servico("Orquestra da Cerimônia")
+                    .empresa("Harmonia Musical")
+                    .telefone("(11) 98111-2233")
+                    .horarioPrevisto("14:00")
+                    .instrucaoChegada("Chegada antecipada às 14:00 para afinação e montagem de instrumentos acústicos")
+                    .chegadaAntecipada(true)
+                    .equipe(new java.util.ArrayList<>(List.of(
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f1-1").nome("Luciano").funcao("Maestro / Responsável").presente(false).build(),
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f1-2").nome("Amanda").funcao("Violino").presente(false).build(),
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f1-3").nome("Felipe").funcao("Violoncelo").presente(false).build(),
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f1-4").nome("Mariana").funcao("Teclado").presente(false).build()
+                    )))
+                    .createdAt(agora)
+                    .build();
+
+            var f2 = br.com.convite.gateway.persistence.entity.FornecedorCasamentoEntity.builder()
+                    .nome("Camila")
+                    .responsavel("Camila")
+                    .papel("Fornecedor")
+                    .categoria("Foto & Vídeo")
+                    .servico("Fotografia & Vídeo")
+                    .empresa("Studio Lumière")
+                    .telefone("(11) 98222-3344")
+                    .horarioPrevisto("14:30")
+                    .instrucaoChegada("Chegada antecipada para início da cobertura de making-of e decoração")
+                    .chegadaAntecipada(true)
+                    .equipe(new java.util.ArrayList<>(List.of(
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f2-1").nome("Camila").funcao("Fotógrafa Principal").presente(false).build(),
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f2-2").nome("Pedro").funcao("Cinegrafista").presente(false).build(),
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f2-3").nome("Lucas").funcao("Assistente de Luz").presente(false).build()
+                    )))
+                    .createdAt(agora)
+                    .build();
+
+            var f3 = br.com.convite.gateway.persistence.entity.FornecedorCasamentoEntity.builder()
+                    .nome("DJ Rodrigo")
+                    .responsavel("DJ Rodrigo")
+                    .papel("Fornecedor")
+                    .categoria("Música & Som")
+                    .servico("Som e Iluminação")
+                    .empresa("Beat & Light")
+                    .telefone("(11) 98333-4455")
+                    .horarioPrevisto("13:00")
+                    .instrucaoChegada("Montagem técnica antecipada de som de pista e iluminação cênica")
+                    .chegadaAntecipada(true)
+                    .equipe(new java.util.ArrayList<>(List.of(
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f3-1").nome("DJ Rodrigo").funcao("DJ e Operador").presente(false).build(),
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f3-2").nome("Tiago").funcao("Técnico de Som").presente(false).build()
+                    )))
+                    .createdAt(agora)
+                    .build();
+
+            var f4 = br.com.convite.gateway.persistence.entity.FornecedorCasamentoEntity.builder()
+                    .nome("Marcelo")
+                    .responsavel("Marcelo")
+                    .papel("Fornecedor")
+                    .categoria("Buffet & Gastronomia")
+                    .servico("Buffet Completo & Bar")
+                    .empresa("Gastronomia Imperial")
+                    .telefone("(11) 98444-5566")
+                    .horarioPrevisto("12:00")
+                    .instrucaoChegada("Cozinha e bar liberados a partir das 12:00 para preparo e mise en place")
+                    .chegadaAntecipada(true)
+                    .equipe(new java.util.ArrayList<>(List.of(
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f4-1").nome("Marcelo").funcao("Chef Executivo").presente(false).build(),
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f4-2").nome("Renata").funcao("Maître").presente(false).build(),
+                            br.com.convite.gateway.persistence.entity.MembroEquipeFornecedorEntity.builder()
+                                    .id("f4-3").nome("Gustavo").funcao("Chefe de Bar").presente(false).build()
+                    )))
+                    .createdAt(agora)
+                    .build();
+
+            fornecedorRepository.saveAll(List.of(f1, f2, f3, f4));
+            System.out.println("✅ Fornecedores credenciados com equipes nominais inicializados.");
+        }
+    }
+
+    private void inicializarClassificacoesDemonstracao() {
+        var agora = java.time.LocalDateTime.now();
+        if (papelRepository.count() == 0) {
+            var papeis = List.of(
+                    br.com.convite.gateway.persistence.entity.PapelParticipanteEntity.builder().nome("Convidado").cortejo(false).createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.PapelParticipanteEntity.builder().nome("Padrinho").cortejo(true).createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.PapelParticipanteEntity.builder().nome("Madrinha").cortejo(true).createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.PapelParticipanteEntity.builder().nome("Pai").cortejo(true).createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.PapelParticipanteEntity.builder().nome("Mãe").cortejo(true).createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.PapelParticipanteEntity.builder().nome("Daminha").cortejo(true).createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.PapelParticipanteEntity.builder().nome("Pajem").cortejo(true).createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.PapelParticipanteEntity.builder().nome("Florista").cortejo(true).createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.PapelParticipanteEntity.builder().nome("Outro").cortejo(false).createdAt(agora).updatedAt(agora).build()
+            );
+            papelRepository.saveAll(papeis);
+            System.out.println("✅ Papéis padrão inicializados com sucesso.");
+        } else {
+            // Migração de bancos existentes: renomeia 'Convidado comum' -> 'Convidado' e remove 'Cortejo' como papel
+            papelRepository.findByNomeIgnoreCase("Convidado comum").ifPresent(p -> {
+                p.setNome("Convidado");
+                p.setCortejo(false);
+                p.setUpdatedAt(agora);
+                papelRepository.save(p);
+            });
+            papelRepository.findByNomeIgnoreCase("Cortejo").ifPresent(papelRepository::delete);
+        }
+
+        if (vinculoRepository.count() == 0) {
+            var vinculos = List.of(
+                    br.com.convite.gateway.persistence.entity.VinculoParticipanteEntity.builder().nome("Noivo").createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.VinculoParticipanteEntity.builder().nome("Noiva").createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.VinculoParticipanteEntity.builder().nome("Pai/Mãe").createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.VinculoParticipanteEntity.builder().nome("Irmão/Irmã").createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.VinculoParticipanteEntity.builder().nome("Família").createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.VinculoParticipanteEntity.builder().nome("Amigo(a)").createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.VinculoParticipanteEntity.builder().nome("Colega").createdAt(agora).updatedAt(agora).build(),
+                    br.com.convite.gateway.persistence.entity.VinculoParticipanteEntity.builder().nome("Outro").createdAt(agora).updatedAt(agora).build()
+            );
+            vinculoRepository.saveAll(vinculos);
+            System.out.println("✅ Vínculos padrão inicializados com sucesso.");
+        }
     }
 }
