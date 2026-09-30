@@ -34,13 +34,23 @@ public class RecepcaoCheckinController {
     private final AutenticarUsuarioUseCase autenticarUsuarioUseCase;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@jakarta.validation.Valid @RequestBody RecepcaoLoginRequest creds) {
+    public ResponseEntity<?> login(
+            @jakarta.validation.Valid @RequestBody RecepcaoLoginRequest creds,
+            jakarta.servlet.http.HttpServletRequest servletRequest) {
         try {
-            String token = autenticarUsuarioUseCase.executar(creds.getUsername().trim(), creds.getPassword());
+            String userAgent = servletRequest != null ? servletRequest.getHeader("User-Agent") : "";
+            LoginResponse authResponse = autenticarUsuarioUseCase.autenticarCompleto(
+                    creds.getUsername().trim(), creds.getPassword(), userAgent);
+
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "token", token,
-                    "username", creds.getUsername().trim()
+                    "token", authResponse.getToken(),
+                    "accessToken", authResponse.getAccessToken(),
+                    "refreshToken", authResponse.getRefreshToken(),
+                    "tokenType", authResponse.getTokenType(),
+                    "expiresIn", authResponse.getExpiresIn(),
+                    "username", authResponse.getUsername(),
+                    "role", authResponse.getRole()
             ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(

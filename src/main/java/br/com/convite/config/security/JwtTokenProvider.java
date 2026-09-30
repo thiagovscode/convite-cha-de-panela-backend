@@ -1,6 +1,8 @@
 package br.com.convite.config.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.DecodingException;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 public class JwtTokenProvider {
@@ -25,19 +28,35 @@ public class JwtTokenProvider {
 
     private SecretKey jwtSecretKey;
 
-    // Validade estrita de 2 horas (2 * 60 * 60 * 1000 = 7.200.000 ms)
-    public static final long EXPIRACAO_2_HORAS_MS = 2 * 60 * 60 * 1000L;
+    // Padrão de expiração curta para o Access Token: 15 minutos (900.000 ms)
+    public static final long DEFAULT_ACCESS_TOKEN_EXPIRATION_MS = 15 * 60 * 1000L;
 
-    @Value("${JWT_EXPIRATION_MS:#{null}}")
-    private Long customExpirationMs;
+    // Padrão de expiração longa para o Refresh Token: 7 dias (604.800.000 ms)
+    public static final long DEFAULT_REFRESH_TOKEN_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1000L;
 
-    @Value("${JWT_SECRET:${app.security.jwt.secret:}}")
+    @Value("${JWT_ACCESS_TOKEN_EXPIRATION_MS:${jwt.access-token-expiration:#{null}}}")
+    private Long configuredAccessTokenExpirationMs;
+
+    @Value("${JWT_REFRESH_TOKEN_EXPIRATION_MS:${jwt.refresh-token-expiration:#{null}}}")
+    private Long configuredRefreshTokenExpirationMs;
+
+    @Value("${JWT_SECRET:${JWT_SECRET_BASE64:${app.security.jwt.secret:}}}")
     private String configuredSecret;
 
+    public long getAccessTokenExpirationMs() {
+        return (configuredAccessTokenExpirationMs != null && configuredAccessTokenExpirationMs > 0)
+                ? configuredAccessTokenExpirationMs
+                : DEFAULT_ACCESS_TOKEN_EXPIRATION_MS;
+    }
+
+    public long getRefreshTokenExpirationMs() {
+        return (configuredRefreshTokenExpirationMs != null && configuredRefreshTokenExpirationMs > 0)
+                ? configuredRefreshTokenExpirationMs
+                : DEFAULT_REFRESH_TOKEN_EXPIRATION_MS;
+    }
+
     public long getExpirationDuration() {
-        return (customExpirationMs != null && customExpirationMs > 0)
-                ? customExpirationMs
-                : EXPIRACAO_2_HORAS_MS;
+        return getAccessTokenExpirationMs();
     }
 
     @PostConstruct
@@ -45,8 +64,8 @@ public class JwtTokenProvider {
         if (configuredSecret == null || configuredSecret.isBlank()) {
             throw new IllegalStateException(
                 "FALHA CRÍTICA DE CONFIGURAÇÃO: O segredo JWT não foi configurado. " +
-                "Defina a variável de ambiente JWT_SECRET (ou a propriedade 'app.security.jwt.secret') " +
-                "com no mínimo 64 bytes (512 bits) de entropia para HS512, preferencialmente codificada em Base64."
+                "Defina a variável de ambiente JWT_SECRET ou JWT_SECRET_BASE64 " +
+                "com no mínimo 64 bytes (512 bits) de entropia para o algoritmo HS512."
             );
         }
 
@@ -62,8 +81,10 @@ public class JwtTokenProvider {
         }
 
         this.jwtSecretKey = Keys.hmacShaKeyFor(keyBytes);
-        log.info("Chave criptográfica JWT (HS512) inicializada com sucesso (tamanho: {} bytes). Validade do token: {} horas ({} ms).",
-                keyBytes.length, (getExpirationDuration() / (1000.0 * 3600.0)), getExpirationDuration());
+        log.info("Chave criptográfica JWT (HS512) inicializada com sucesso ({} bytes). Expiração do Access Token: {}s ({} ms). Expiração do Refresh Token: {}s ({} ms).",
+                keyBytes.length,
+                (getAccessTokenExpirationMs() / 1000), getAccessTokenExpirationMs(),
+                (getRefreshTokenExpirationMs() / 1000), getRefreshTokenExpirationMs());
     }
 
     /**
@@ -89,60 +110,87 @@ public class JwtTokenProvider {
                 .map(GrantedAuthority::getAuthority)
                 .orElse("ROLE_USER");
 
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + getExpirationDuration());
-
-        return Jwts.builder()
-                .subject(username)
-                .claim("role", role)
-                .issuedAt(now)
-                .expiration(expiryDate)
-                .signWith(jwtSecretKey)
-                .compact();
+        return generateTokenForUsername(username, role);
     }
 
+    /**
+     * Gera um Access Token JWT com todas as claims recomendadas:
+     * - sub (subject = username)
+     * - role
+     * - token_type = "access" (impede confusão com refresh token)
+     * - jti (identificador único do token)
+     * - iat (data de emissão)
+     * - exp (data de expiração curta)
+     */
     public String generateTokenForUsername(String username, String role) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + getExpirationDuration());
+        Date expiryDate = new Date(now.getTime() + getAccessTokenExpirationMs());
 
         String roleClaim = role != null && role.startsWith("ROLE_") ? role : "ROLE_" + (role != null ? role.toUpperCase() : "USER");
+        String jti = UUID.randomUUID().toString();
 
         return Jwts.builder()
                 .subject(username)
+                .id(jti)
                 .claim("role", roleClaim)
+                .claim("token_type", "access")
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(jwtSecretKey)
                 .compact();
     }
 
-    public String getUsernameFromToken(String token) {
-        Claims claims = Jwts.parser()
+    public Claims parseAndValidateClaims(String token) {
+        return Jwts.parser()
                 .verifyWith(jwtSecretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-        return claims.getSubject();
+    }
+
+    public String getUsernameFromToken(String token) {
+        return parseAndValidateClaims(token).getSubject();
     }
 
     public String getRoleFromToken(String token) {
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(jwtSecretKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            return claims.get("role", String.class);
+            return parseAndValidateClaims(token).get("role", String.class);
         } catch (Exception ex) {
             return null;
         }
     }
 
+    public String getJtiFromToken(String token) {
+        try {
+            return parseAndValidateClaims(token).getId();
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    public String getTokenTypeFromToken(String token) {
+        try {
+            return parseAndValidateClaims(token).get("token_type", String.class);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    /**
+     * Valida a integridade, assinatura e validade do Access Token.
+     * Garante também que o token seja do tipo "access".
+     */
     public boolean validateToken(String token) {
         try {
-            Jwts.parser().verifyWith(jwtSecretKey).build().parseSignedClaims(token);
-            return true;
-        } catch (Exception ex) {
+            Claims claims = parseAndValidateClaims(token);
+            String tokenType = claims.get("token_type", String.class);
+            // Tokens sem token_type ou com tipo diferente de "access" são rejeitados
+            return "access".equalsIgnoreCase(tokenType);
+        } catch (ExpiredJwtException ex) {
+            log.debug("Token JWT expirado: {}", ex.getMessage());
+            return false;
+        } catch (JwtException | IllegalArgumentException ex) {
+            log.debug("Token JWT inválido ou adulterado: {}", ex.getMessage());
             return false;
         }
     }
