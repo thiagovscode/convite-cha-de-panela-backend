@@ -36,5 +36,6 @@ public class RsvpCasamentoRequest {
     @Size(max = 500, message = "A observacao nao pode ter mais de 500 caracteres.")
     private String observacao;
 
+    @NotBlank(message = "O código do convite é obrigatório.")
     private String codigoConvite;
 }

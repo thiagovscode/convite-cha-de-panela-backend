@@ -86,7 +86,10 @@ public class AdminConfiguracaoClassificacaoController {
     @Deprecated(since = "2.0", forRemoval = true)
     @GetMapping("/vinculos")
     public ResponseEntity<List<VinculoParticipante>> listarVinculos() {
-        return ResponseEntity.ok(listarVinculosUseCase.executar());
+        return ResponseEntity.ok()
+                .header("Deprecation", "true")
+                .header("Sunset", "Wed, 31 Dec 2026 23:59:59 GMT")
+                .body(listarVinculosUseCase.executar());
     }
 
     @Deprecated(since = "2.0", forRemoval = true)

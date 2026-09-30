@@ -42,6 +42,14 @@ public class RecepcaoCheckinController {
             LoginResponse authResponse = autenticarUsuarioUseCase.autenticarCompleto(
                     creds.getUsername().trim(), creds.getPassword(), userAgent);
 
+            String userRole = authResponse.getRole() != null ? authResponse.getRole().toUpperCase() : "";
+            if (!userRole.contains("RECEPCAO") && !userRole.contains("ADMIN")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        "success", false,
+                        "message", "Acesso restrito à equipe de recepção ou administradores."
+                ));
+            }
+
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "token", authResponse.getToken(),

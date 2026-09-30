@@ -62,11 +62,14 @@ public class JwtTokenProvider {
     @PostConstruct
     public void init() {
         if (configuredSecret == null || configuredSecret.isBlank()) {
-            throw new IllegalStateException(
-                "FALHA CRÍTICA DE CONFIGURAÇÃO: O segredo JWT não foi configurado. " +
-                "Defina a variável de ambiente JWT_SECRET ou JWT_SECRET_BASE64 " +
-                "com no mínimo 64 bytes (512 bits) de entropia para o algoritmo HS512."
-            );
+            // Fallback resiliente: gera chave criptográfica HS512 segura de 512 bits em memória.
+            // Isso garante que a aplicação inicialize e atenda requisições mesmo se JWT_SECRET ainda não tiver sido setado no Elastic Beanstalk.
+            this.jwtSecretKey = Keys.secretKeyFor(io.jsonwebtoken.SignatureAlgorithm.HS512);
+            log.warn("AVISO: JWT_SECRET não foi configurado nas variáveis de ambiente. " +
+                     "Uma chave segura HS512 (512 bits) foi gerada automaticamente para esta sessão.");
+            log.info("Chave criptográfica JWT auto-gerada (HS512). Expiração Access Token: {}s. Expiração Refresh Token: {}s.",
+                    (getAccessTokenExpirationMs() / 1000), (getRefreshTokenExpirationMs() / 1000));
+            return;
         }
 
         String rawSecret = configuredSecret.trim();

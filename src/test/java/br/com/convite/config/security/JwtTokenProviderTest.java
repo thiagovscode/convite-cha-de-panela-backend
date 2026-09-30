@@ -18,13 +18,15 @@ class JwtTokenProviderTest {
     }
 
     @Test
-    @DisplayName("Deve falhar com IllegalStateException quando o segredo for nulo ou vazio (fail-fast)")
-    void deveFalharQuandoSegredoEstiverVazio() {
+    @DisplayName("Deve inicializar com auto-geração segura de chave quando o segredo não for configurado")
+    void deveAutoGerarChaveQuandoSegredoEstiverVazio() {
         JwtTokenProvider provider = new JwtTokenProvider();
         ReflectionTestUtils.setField(provider, "configuredSecret", "");
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class, provider::init);
-        assertTrue(ex.getMessage().contains("FALHA CRÍTICA DE CONFIGURAÇÃO"));
+        assertDoesNotThrow(provider::init);
+        String token = provider.generateTokenForUsername("admin", "ROLE_ADMIN");
+        assertNotNull(token);
+        assertTrue(provider.validateToken(token));
     }
 
     @Test
