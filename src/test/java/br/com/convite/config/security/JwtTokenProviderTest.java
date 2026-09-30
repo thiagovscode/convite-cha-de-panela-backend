@@ -45,7 +45,7 @@ class JwtTokenProviderTest {
         JwtTokenProvider provider = new JwtTokenProvider();
         String chaveValida = gerarChaveBase64(64);
         ReflectionTestUtils.setField(provider, "configuredSecret", chaveValida);
-        ReflectionTestUtils.setField(provider, "jwtExpiration", 3600000L);
+        ReflectionTestUtils.setField(provider, "customExpirationMs", 3600000L);
 
         assertDoesNotThrow(provider::init);
 
@@ -63,7 +63,7 @@ class JwtTokenProviderTest {
         // String ASCII com 64 caracteres (64 bytes em UTF-8)
         String chaveUtf8 = "1234567890123456789012345678901234567890123456789012345678901234";
         ReflectionTestUtils.setField(provider, "configuredSecret", chaveUtf8);
-        ReflectionTestUtils.setField(provider, "jwtExpiration", 3600000L);
+        ReflectionTestUtils.setField(provider, "customExpirationMs", 3600000L);
 
         assertDoesNotThrow(provider::init);
 
@@ -72,5 +72,13 @@ class JwtTokenProviderTest {
         assertTrue(provider.validateToken(token));
         assertEquals("recepcao", provider.getUsernameFromToken(token));
         assertEquals("ROLE_RECEPCAO", provider.getRoleFromToken(token));
+    }
+
+    @Test
+    @DisplayName("Deve definir validade padrão do token de exatamente 2 horas (7200000 ms)")
+    void deveTerValidadePadraoDeDuasHoras() {
+        JwtTokenProvider provider = new JwtTokenProvider();
+        assertEquals(7200000L, provider.getExpirationDuration());
+        assertEquals(JwtTokenProvider.EXPIRACAO_2_HORAS_MS, provider.getExpirationDuration());
     }
 }

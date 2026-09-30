@@ -25,11 +25,20 @@ public class JwtTokenProvider {
 
     private SecretKey jwtSecretKey;
 
-    @Value("${app.security.jwt.expiration:86400000}")
-    private long jwtExpiration;
+    // Validade estrita de 2 horas (2 * 60 * 60 * 1000 = 7.200.000 ms)
+    public static final long EXPIRACAO_2_HORAS_MS = 2 * 60 * 60 * 1000L;
+
+    @Value("${JWT_EXPIRATION_MS:#{null}}")
+    private Long customExpirationMs;
 
     @Value("${JWT_SECRET:${app.security.jwt.secret:}}")
     private String configuredSecret;
+
+    public long getExpirationDuration() {
+        return (customExpirationMs != null && customExpirationMs > 0)
+                ? customExpirationMs
+                : EXPIRACAO_2_HORAS_MS;
+    }
 
     @PostConstruct
     public void init() {
@@ -53,7 +62,8 @@ public class JwtTokenProvider {
         }
 
         this.jwtSecretKey = Keys.hmacShaKeyFor(keyBytes);
-        log.info("Chave criptográfica JWT (HS512) inicializada com sucesso (tamanho: {} bytes).", keyBytes.length);
+        log.info("Chave criptográfica JWT (HS512) inicializada com sucesso (tamanho: {} bytes). Validade do token: {} horas ({} ms).",
+                keyBytes.length, (getExpirationDuration() / (1000.0 * 3600.0)), getExpirationDuration());
     }
 
     /**
@@ -80,7 +90,7 @@ public class JwtTokenProvider {
                 .orElse("ROLE_USER");
 
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+        Date expiryDate = new Date(now.getTime() + getExpirationDuration());
 
         return Jwts.builder()
                 .subject(username)
@@ -93,7 +103,7 @@ public class JwtTokenProvider {
 
     public String generateTokenForUsername(String username, String role) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+        Date expiryDate = new Date(now.getTime() + getExpirationDuration());
 
         String roleClaim = role != null && role.startsWith("ROLE_") ? role : "ROLE_" + (role != null ? role.toUpperCase() : "USER");
 
