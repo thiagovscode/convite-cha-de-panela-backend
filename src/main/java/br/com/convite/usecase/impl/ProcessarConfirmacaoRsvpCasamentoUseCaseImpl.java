@@ -9,6 +9,7 @@ import br.com.convite.gateway.FornecedorGateway;
 import br.com.convite.gateway.ParticipanteCerimoniaGateway;
 import br.com.convite.usecase.ConfirmarRsvpCasamentoUseCase;
 import br.com.convite.usecase.ProcessarConfirmacaoRsvpCasamentoUseCase;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
@@ -29,6 +30,7 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
     private final ConfirmarRsvpCasamentoUseCase confirmarRsvpCasamentoUseCase;
     private final Clock clock;
 
+    @Autowired
     public ProcessarConfirmacaoRsvpCasamentoUseCaseImpl(
             ConviteGateway conviteGateway,
             ParticipanteCerimoniaGateway participanteCerimoniaGateway,
