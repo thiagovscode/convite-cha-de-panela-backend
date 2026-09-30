@@ -16,6 +16,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -243,5 +246,81 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
         // Ana Paula vai
         assertTrue(convite.getMembros().get(1).getConfirmadoRsvp());
         verify(conviteGateway, times(1)).salvar(convite);
+    }
+
+    @Test
+    @DisplayName("Deve lancar excecao quando tentativa de confirmacao ocorrer apos o prazo limite de 23/12/2026")
+    void deveLancarExcecaoQuandoDataEstiverAposPrazoLimite() {
+        // 2026-12-24T00:00:01 em SP (UTC-3 -> 2026-12-24T03:00:01Z)
+        Clock clockExpirado = Clock.fixed(
+                Instant.parse("2026-12-24T03:00:01Z"),
+                ZoneId.of("America/Sao_Paulo")
+        );
+
+        var useCaseExpirado = new ProcessarConfirmacaoRsvpCasamentoUseCaseImpl(
+                conviteGateway,
+                participanteCerimoniaGateway,
+                fornecedorGateway,
+                confirmarRsvpCasamentoUseCase,
+                clockExpirado
+        );
+
+        RegraDeNegocioException ex = assertThrows(RegraDeNegocioException.class, () ->
+                useCaseExpirado.executar(
+                        "QUALQUER",
+                        "Nome Teste",
+                        "11988887777",
+                        null,
+                        true,
+                        List.of(),
+                        null
+                )
+        );
+
+        assertTrue(ex.getMessage().contains("23/12/2026"));
+        assertTrue(ex.getMessage().contains("encerrou"));
+    }
+
+    @Test
+    @DisplayName("Deve permitir confirmacao de presenca antes de expirar o prazo em 23/12/2026")
+    void devePermitirConfirmacaoNoDiaLimiteAntesDoPrazo() {
+        // 2026-12-23T23:59:00 em SP (UTC-3 -> 2026-12-24T02:59:00Z)
+        Clock clockValido = Clock.fixed(
+                Instant.parse("2026-12-24T02:59:00Z"),
+                ZoneId.of("America/Sao_Paulo")
+        );
+
+        var useCaseValido = new ProcessarConfirmacaoRsvpCasamentoUseCaseImpl(
+                conviteGateway,
+                participanteCerimoniaGateway,
+                fornecedorGateway,
+                confirmarRsvpCasamentoUseCase,
+                clockValido
+        );
+
+        Convite convite = Convite.builder()
+                .id("c_prazo")
+                .codigo("PRAZO")
+                .familia("Família Teste")
+                .status("PENDENTE")
+                .membros(List.of(MembroConvite.builder().id("m1").nome("Lucas").titular(true).build()))
+                .build();
+
+        when(conviteGateway.buscarPorCodigo("PRAZO")).thenReturn(Optional.of(convite));
+        when(confirmarRsvpCasamentoUseCase.executar(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(participanteCerimoniaGateway.listarTodos()).thenReturn(List.of());
+        when(fornecedorGateway.listarTodos()).thenReturn(List.of());
+
+        var resultado = useCaseValido.executar(
+                "PRAZO",
+                "Lucas",
+                "11999998888",
+                null,
+                true,
+                List.of(),
+                null
+        );
+
+        assertTrue(resultado.presenca());
     }
 }

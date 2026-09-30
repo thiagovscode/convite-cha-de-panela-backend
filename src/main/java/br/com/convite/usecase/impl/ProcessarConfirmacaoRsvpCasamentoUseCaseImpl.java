@@ -9,21 +9,48 @@ import br.com.convite.gateway.FornecedorGateway;
 import br.com.convite.gateway.ParticipanteCerimoniaGateway;
 import br.com.convite.usecase.ConfirmarRsvpCasamentoUseCase;
 import br.com.convite.usecase.ProcessarConfirmacaoRsvpCasamentoUseCase;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarConfirmacaoRsvpCasamentoUseCase {
+
+    public static final LocalDateTime PRAZO_LIMITE_RSVP = LocalDateTime.of(2026, 12, 23, 23, 59, 59);
+    public static final ZoneId FUSO_HORARIO = ZoneId.of("America/Sao_Paulo");
 
     private final ConviteGateway conviteGateway;
     private final ParticipanteCerimoniaGateway participanteCerimoniaGateway;
     private final FornecedorGateway fornecedorGateway;
     private final ConfirmarRsvpCasamentoUseCase confirmarRsvpCasamentoUseCase;
+    private final Clock clock;
+
+    public ProcessarConfirmacaoRsvpCasamentoUseCaseImpl(
+            ConviteGateway conviteGateway,
+            ParticipanteCerimoniaGateway participanteCerimoniaGateway,
+            FornecedorGateway fornecedorGateway,
+            ConfirmarRsvpCasamentoUseCase confirmarRsvpCasamentoUseCase
+    ) {
+        this(conviteGateway, participanteCerimoniaGateway, fornecedorGateway, confirmarRsvpCasamentoUseCase, Clock.system(FUSO_HORARIO));
+    }
+
+    public ProcessarConfirmacaoRsvpCasamentoUseCaseImpl(
+            ConviteGateway conviteGateway,
+            ParticipanteCerimoniaGateway participanteCerimoniaGateway,
+            FornecedorGateway fornecedorGateway,
+            ConfirmarRsvpCasamentoUseCase confirmarRsvpCasamentoUseCase,
+            Clock clock
+    ) {
+        this.conviteGateway = conviteGateway;
+        this.participanteCerimoniaGateway = participanteCerimoniaGateway;
+        this.fornecedorGateway = fornecedorGateway;
+        this.confirmarRsvpCasamentoUseCase = confirmarRsvpCasamentoUseCase;
+        this.clock = clock != null ? clock : Clock.system(FUSO_HORARIO);
+    }
 
     @Override
     public ResultadoProcessamentoRsvp executar(
@@ -35,6 +62,11 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
             List<AcompanhanteCasamento> acompanhantes,
             String observacao
     ) {
+        LocalDateTime agora = LocalDateTime.now(clock);
+        if (agora.isAfter(PRAZO_LIMITE_RSVP)) {
+            throw new RegraDeNegocioException("O prazo para confirmação ou alteração de presença encerrou em 23/12/2026. Por favor, entre em contato diretamente com os noivos.");
+        }
+
         if (codigoConvite == null || codigoConvite.isBlank()) {
             throw new RegraDeNegocioException("A confirmação de presença é restrita à lista oficial. Informe um código de convite válido.");
         }
