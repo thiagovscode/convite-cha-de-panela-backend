@@ -31,6 +31,7 @@ public class RegistrarCheckinConvidadoUseCaseImpl implements RegistrarCheckinCon
         }
 
         Convite convite = conviteGateway.buscarPorCodigo(comando.codigo().trim())
+                .or(() -> conviteGateway.buscarPorCodigoOuId(comando.codigo().trim()))
                 .orElseThrow(() -> new ConviteNaoEncontradoException(comando.codigo()));
 
         if (convite.getMembros() == null || convite.getMembros().isEmpty()) {
@@ -39,6 +40,18 @@ public class RegistrarCheckinConvidadoUseCaseImpl implements RegistrarCheckinCon
 
         if (comando.presencas() == null || comando.presencas().isEmpty()) {
             throw new RegraDeNegocioException("É necessário informar a presença de pelo menos um membro.");
+        }
+
+        // Validação estrita de escopo: garante que cada membro informado pertence exclusivamente a este convite
+        java.util.Set<String> idsMembrosValidos = convite.getMembros().stream()
+                .map(MembroConvite::getId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        for (PresencaMembro p : comando.presencas()) {
+            if (p.membroId() != null && !idsMembrosValidos.contains(p.membroId())) {
+                throw new br.com.convite.exception.ConvidadoNaoEncontradoException(p.membroId());
+            }
         }
 
         // Validação de Duplicidade: Impede registrar se todos já entraram

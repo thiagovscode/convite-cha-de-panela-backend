@@ -11,10 +11,22 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class CalcularMetricasCasamentoUseCaseImpl implements CalcularMetricasCasamentoUseCase {
 
     private final ConviteGateway conviteGateway;
+    private final br.com.convite.gateway.FornecedorGateway fornecedorGateway;
+
+    public CalcularMetricasCasamentoUseCaseImpl(ConviteGateway conviteGateway) {
+        this(conviteGateway, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CalcularMetricasCasamentoUseCaseImpl(
+            ConviteGateway conviteGateway,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) br.com.convite.gateway.FornecedorGateway fornecedorGateway) {
+        this.conviteGateway = conviteGateway;
+        this.fornecedorGateway = fornecedorGateway;
+    }
 
     @Override
     public MetricasCasamento executar() {
@@ -60,6 +72,21 @@ public class CalcularMetricasCasamentoUseCaseImpl implements CalcularMetricasCas
             } else {
                 // Convite sem membros: não contabiliza pessoas (dado inconsistente)
                 // Apenas conta o convite em si (já contado no status acima)
+            }
+        }
+
+        // Membros de fornecedores que permanecem até o fim contam como convidados confirmados
+        if (fornecedorGateway != null) {
+            for (br.com.convite.domain.Fornecedor f : fornecedorGateway.listarTodos()) {
+                if (f.getEquipe() != null) {
+                    for (br.com.convite.domain.MembroEquipeFornecedor m : f.getEquipe()) {
+                        if (Boolean.TRUE.equals(m.getPermaneceAteFim())) {
+                            totalPessoas++;
+                            totalAdultosConfirmados++;
+                            totalConfirmados++;
+                        }
+                    }
+                }
             }
         }
 

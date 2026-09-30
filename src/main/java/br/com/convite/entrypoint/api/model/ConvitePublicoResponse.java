@@ -12,6 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ConvitePublicoResponse {
+    private String id;
     private String codigo;
     private String familia;
     private String telefone;

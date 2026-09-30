@@ -10,6 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface ConviteCasamentoRepository extends MongoRepository<ConviteCasamentoEntity, String> {
+    Optional<ConviteCasamentoEntity> findFirstByCodigoIgnoreCase(String codigo);
     Optional<ConviteCasamentoEntity> findByCodigoIgnoreCase(String codigo);
 
     @Query("{ '$or': [ " +

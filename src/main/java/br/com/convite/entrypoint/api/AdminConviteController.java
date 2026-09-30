@@ -27,6 +27,8 @@ public class AdminConviteController {
 
     private final ListarConvitesUseCase listarConvitesUseCase;
     private final SalvarConviteUseCase salvarConviteUseCase;
+    private final br.com.convite.usecase.CriarConviteUseCase criarConviteUseCase;
+    private final br.com.convite.usecase.AtualizarConviteUseCase atualizarConviteUseCase;
     private final ExcluirConviteUseCase excluirConviteUseCase;
     private final CalcularMetricasCasamentoUseCase calcularMetricasCasamentoUseCase;
     private final br.com.convite.gateway.ConviteGateway conviteGateway;
@@ -123,8 +125,62 @@ public class AdminConviteController {
     }
 
     @PostMapping
-    public ResponseEntity<?> salvarOuAtualizar(@Valid @RequestBody SalvarConviteAdminRequest req) {
-        Convite dados = Convite.builder()
+    public ResponseEntity<?> salvarNovo(@Valid @RequestBody SalvarConviteAdminRequest req) {
+        return processarSalvar(req);
+    }
+
+    @PostMapping("/cadastrar")
+    public ResponseEntity<?> cadastrar(@Valid @RequestBody SalvarConviteAdminRequest req) {
+        return processarSalvar(req);
+    }
+
+    @PutMapping("/{codigoOuId}")
+    public ResponseEntity<?> atualizarPorParametro(
+            @PathVariable String codigoOuId,
+            @Valid @RequestBody SalvarConviteAdminRequest req) {
+        if (req.getCodigo() == null || req.getCodigo().isBlank()) {
+            req.setCodigo(codigoOuId);
+        }
+        if (req.getId() == null || req.getId().isBlank()) {
+            req.setId(codigoOuId);
+        }
+        return processarAtualizacao(req);
+    }
+
+    @PutMapping
+    public ResponseEntity<?> atualizar(@Valid @RequestBody SalvarConviteAdminRequest req) {
+        return processarAtualizacao(req);
+    }
+
+    private ResponseEntity<?> processarSalvar(SalvarConviteAdminRequest req) {
+        Convite dados = toConviteDomain(req);
+        Convite salvo = salvarConviteUseCase.executar(dados);
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("success", true);
+        resp.put("message", "Convite salvo com sucesso!");
+        resp.put("codigo", salvo.getCodigo());
+        resp.put("convite", salvo);
+
+        return ResponseEntity.ok(resp);
+    }
+
+    private ResponseEntity<?> processarAtualizacao(SalvarConviteAdminRequest req) {
+        Convite dados = toConviteDomain(req);
+        Convite atualizado = atualizarConviteUseCase.executar(dados);
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("success", true);
+        resp.put("message", "Convite atualizado com sucesso!");
+        resp.put("codigo", atualizado.getCodigo());
+        resp.put("convite", atualizado);
+
+        return ResponseEntity.ok(resp);
+    }
+
+    private Convite toConviteDomain(SalvarConviteAdminRequest req) {
+        return Convite.builder()
+                .id(req.getId())
                 .codigo(req.getCodigo())
                 .familia(req.getFamilia())
                 .telefone(req.getTelefone())
@@ -135,16 +191,6 @@ public class AdminConviteController {
                         .map(this::toMembroDomain)
                         .collect(Collectors.toList()) : null)
                 .build();
-
-        Convite salvo = salvarConviteUseCase.executar(dados);
-
-        Map<String, Object> resp = new LinkedHashMap<>();
-        resp.put("success", true);
-        resp.put("message", "Convite salvo com sucesso!");
-        resp.put("codigo", salvo.getCodigo());
-        resp.put("convite", salvo);
-
-        return ResponseEntity.ok(resp);
     }
 
 

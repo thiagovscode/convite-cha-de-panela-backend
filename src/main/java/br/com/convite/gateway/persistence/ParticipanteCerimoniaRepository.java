@@ -10,6 +10,7 @@ import java.util.Optional;
 @Repository
 public interface ParticipanteCerimoniaRepository extends MongoRepository<ParticipanteCerimoniaEntity, String> {
     List<ParticipanteCerimoniaEntity> findByPapelIgnoreCase(String papel);
+    Optional<ParticipanteCerimoniaEntity> findFirstByNomeIgnoreCase(String nome);
     Optional<ParticipanteCerimoniaEntity> findByNomeIgnoreCase(String nome);
     List<ParticipanteCerimoniaEntity> findByCodigoConviteIgnoreCase(String codigoConvite);
 }

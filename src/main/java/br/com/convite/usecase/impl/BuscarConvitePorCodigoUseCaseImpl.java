@@ -19,6 +19,7 @@ public class BuscarConvitePorCodigoUseCaseImpl implements BuscarConvitePorCodigo
         if (codigo == null || codigo.isBlank()) {
             return Optional.empty();
         }
-        return conviteGateway.buscarPorCodigo(codigo.trim());
+        return conviteGateway.buscarPorCodigo(codigo.trim())
+                .or(() -> conviteGateway.buscarPorCodigoOuId(codigo.trim()));
     }
 }

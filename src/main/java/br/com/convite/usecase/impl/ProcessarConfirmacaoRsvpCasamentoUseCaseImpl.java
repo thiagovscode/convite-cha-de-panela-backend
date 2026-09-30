@@ -9,6 +9,7 @@ import br.com.convite.gateway.FornecedorGateway;
 import br.com.convite.gateway.ParticipanteCerimoniaGateway;
 import br.com.convite.usecase.ConfirmarRsvpCasamentoUseCase;
 import br.com.convite.usecase.ProcessarConfirmacaoRsvpCasamentoUseCase;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 
+@Slf4j
 @Service
 public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarConfirmacaoRsvpCasamentoUseCase {
 
@@ -74,6 +76,7 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
         }
 
         Convite convite = conviteGateway.buscarPorCodigo(codigoConvite.trim())
+                .or(() -> conviteGateway.buscarPorCodigoOuId(codigoConvite.trim()))
                 .orElseThrow(() -> new ConviteNaoEncontradoException(codigoConvite));
 
         if ("CONFIRMADO".equalsIgnoreCase(convite.getStatus())) {
@@ -198,8 +201,17 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
 
         conviteGateway.salvar(convite);
 
-        sincronizarParticipantesNoRsvp(convite, nomesConfirmados, vai);
-        sincronizarFornecedoresNoRsvp(nomesConfirmados, vai);
+        try {
+            sincronizarParticipantesNoRsvp(convite, nomesConfirmados, vai);
+        } catch (Exception e) {
+            log.warn("Erro não impeditivo ao sincronizar participantes do cortejo para convite {}: {}", convite.getCodigo(), e.getMessage());
+        }
+
+        try {
+            sincronizarFornecedoresNoRsvp(nomesConfirmados, vai);
+        } catch (Exception e) {
+            log.warn("Erro não impeditivo ao sincronizar fornecedores para convite {}: {}", convite.getCodigo(), e.getMessage());
+        }
     }
 
     private void sincronizarParticipantesNoRsvp(Convite convite, Set<String> nomesConfirmados, boolean vai) {

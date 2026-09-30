@@ -39,7 +39,7 @@ public class ParticipanteCerimoniaGatewayImpl implements ParticipanteCerimoniaGa
     @Override
     public Optional<ParticipanteCerimonia> buscarPorNome(String nome) {
         if (nome == null || nome.isBlank()) return Optional.empty();
-        return repository.findByNomeIgnoreCase(nome.trim()).map(mapper::toDomain);
+        return repository.findFirstByNomeIgnoreCase(nome.trim()).map(mapper::toDomain);
     }
 
     @Override

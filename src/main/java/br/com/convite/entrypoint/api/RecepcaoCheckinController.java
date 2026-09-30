@@ -127,7 +127,7 @@ public class RecepcaoCheckinController {
         if (codigo == null || codigo.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Código do convite é obrigatório."));
         }
-        var opt = conviteGateway.buscarPorCodigo(codigo.trim());
+        var opt = conviteGateway.buscarPorCodigoOuId(codigo.trim());
         if (opt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("success", false, "message", "Convite não encontrado."));
         }

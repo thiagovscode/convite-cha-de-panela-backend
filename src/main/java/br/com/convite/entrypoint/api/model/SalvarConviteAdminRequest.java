@@ -15,6 +15,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SalvarConviteAdminRequest {
+    // ID persistido no banco (opcional para criação, usado para busca assertiva na atualização)
+    private String id;
+
     // Se não fornecido, o backend gera automaticamente um código único e seguro
     private String codigo;
 

@@ -22,25 +22,36 @@ public class RsvpCasamentoGatewayImpl implements RsvpCasamentoGateway {
 
     @Override
     public RsvpCasamento salvarOuAtualizar(RsvpCasamento rsvp) {
-        // Normaliza telefone antes de persistir — evita duplicatas por formato diferente
+        String telNorm = (rsvp.getTelefone() != null) ? rsvp.getTelefone().replaceAll("\\D", "") : "";
         if (rsvp.getTelefone() != null) {
-            rsvp.setTelefone(rsvp.getTelefone().replaceAll("\\D", ""));
+            rsvp.setTelefone(telNorm);
         }
-        Optional<RsvpCasamentoEntity> existente = repository.findByTelefone(rsvp.getTelefone());
+        Optional<RsvpCasamentoEntity> existente = repository.findFirstByTelefone(telNorm);
+        if (existente.isEmpty() && rsvp.getTelefone() != null && !rsvp.getTelefone().isBlank()) {
+            existente = repository.findFirstByTelefone(rsvp.getTelefone().trim());
+        }
 
-        RsvpCasamentoEntity entity;
+        RsvpCasamentoEntity entity = mapper.toEntity(rsvp);
         if (existente.isPresent()) {
-            entity = mapper.toEntity(rsvp);
             entity.setId(existente.get().getId());
             entity.setCreatedAt(existente.get().getCreatedAt());
-            entity.setUpdatedAt(LocalDateTime.now());
         } else {
-            entity = mapper.toEntity(rsvp);
             entity.setCreatedAt(LocalDateTime.now());
-            entity.setUpdatedAt(LocalDateTime.now());
         }
+        entity.setUpdatedAt(LocalDateTime.now());
+        entity.setTelefone(telNorm);
 
-        return mapper.toDomain(repository.save(entity));
+        try {
+            return mapper.toDomain(repository.save(entity));
+        } catch (org.springframework.dao.DuplicateKeyException dke) {
+            Optional<RsvpCasamentoEntity> conflito = repository.findFirstByTelefone(telNorm);
+            if (conflito.isPresent()) {
+                entity.setId(conflito.get().getId());
+                entity.setCreatedAt(conflito.get().getCreatedAt());
+                return mapper.toDomain(repository.save(entity));
+            }
+            throw dke;
+        }
     }
 
     @Override
@@ -53,11 +64,10 @@ public class RsvpCasamentoGatewayImpl implements RsvpCasamentoGateway {
     @Override
     public Optional<RsvpCasamento> buscarPorTelefone(String telefone) {
         if (telefone == null || telefone.isBlank()) return Optional.empty();
-        // Normaliza telefone para busca consistente
         String telNorm = telefone.replaceAll("\\D", "");
-        Optional<RsvpCasamento> result = repository.findByTelefone(telNorm).map(mapper::toDomain);
+        Optional<RsvpCasamento> result = repository.findFirstByTelefone(telNorm).map(mapper::toDomain);
         if (result.isEmpty()) {
-            result = repository.findByTelefone(telefone.trim()).map(mapper::toDomain);
+            result = repository.findFirstByTelefone(telefone.trim()).map(mapper::toDomain);
         }
         return result;
     }

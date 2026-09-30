@@ -27,13 +27,82 @@ public class ConviteGatewayImpl implements ConviteGateway {
     @Override
     public Optional<Convite> buscarPorCodigo(String codigo) {
         if (codigo == null || codigo.isBlank()) return Optional.empty();
-        return repository.findByCodigoIgnoreCase(codigo.trim()).map(mapper::toDomain);
+        return repository.findFirstByCodigoIgnoreCase(codigo.trim()).map(mapper::toDomain);
     }
 
     @Override
     public Optional<Convite> buscarPorId(String id) {
         if (id == null || id.isBlank()) return Optional.empty();
         return repository.findById(id.trim()).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Convite> buscarPorIdECodigo(String id, String codigo) {
+        // 1. Tenta matching duplo estrito (ID + Código)
+        if (id != null && !id.isBlank() && codigo != null && !codigo.isBlank()) {
+            Optional<ConviteCasamentoEntity> byId = repository.findById(id.trim());
+            if (byId.isPresent() && byId.get().getCodigo() != null && byId.get().getCodigo().equalsIgnoreCase(codigo.trim())) {
+                return byId.map(mapper::toDomain);
+            }
+            Optional<ConviteCasamentoEntity> byCode = repository.findFirstByCodigoIgnoreCase(codigo.trim());
+            if (byCode.isPresent() && byCode.get().getId() != null && byCode.get().getId().equals(id.trim())) {
+                return byCode.map(mapper::toDomain);
+            }
+        }
+        // 2. Se falhar ou apenas um foi informado, busca por ID
+        if (id != null && !id.isBlank()) {
+            Optional<ConviteCasamentoEntity> byId = repository.findById(id.trim());
+            if (byId.isPresent()) return byId.map(mapper::toDomain);
+        }
+        // 3. Fallback para Código
+        if (codigo != null && !codigo.isBlank()) {
+            Optional<ConviteCasamentoEntity> byCode = repository.findFirstByCodigoIgnoreCase(codigo.trim());
+            if (byCode.isPresent()) return byCode.map(mapper::toDomain);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<Convite> buscarPorCodigoEId(String codigo, String id) {
+        return buscarPorIdECodigo(id, codigo);
+    }
+
+    @Override
+    public Optional<Convite> buscarPorCodigoOuId(String termo) {
+        if (termo == null || termo.isBlank()) return Optional.empty();
+        String t = termo.trim();
+        // 1. Tenta por código
+        Optional<ConviteCasamentoEntity> byCode = repository.findFirstByCodigoIgnoreCase(t);
+        if (byCode.isPresent()) return byCode.map(mapper::toDomain);
+        // 2. Tenta por ID
+        try {
+            Optional<ConviteCasamentoEntity> byId = repository.findById(t);
+            if (byId.isPresent()) return byId.map(mapper::toDomain);
+        } catch (Exception ignored) {
+            // Em caso de ID em formato inválido para o MongoDB
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<br.com.convite.domain.MembroConvite> buscarConvidadoPorCodigoConviteEId(String codigoConvite, String membroId) {
+        if (codigoConvite == null || codigoConvite.isBlank() || membroId == null || membroId.isBlank()) {
+            return Optional.empty();
+        }
+        // NÍVEL 1: Busca o convite exclusivamente pelo código
+        Optional<Convite> conviteOpt = buscarPorCodigo(codigoConvite.trim());
+        if (conviteOpt.isEmpty() || conviteOpt.get().getMembros() == null) {
+            return Optional.empty();
+        }
+        // NÍVEL 2: Busca o membro pelo ID dentro de convite.membros
+        return conviteOpt.get().getMembros().stream()
+                .filter(m -> m.getId() != null && m.getId().trim().equalsIgnoreCase(membroId.trim()))
+                .findFirst();
+    }
+
+    @Override
+    public Optional<br.com.convite.domain.MembroConvite> buscarConvidadoPorConviteIdEConvidadoId(String conviteIdOuCodigo, String membroId) {
+        return buscarConvidadoPorCodigoConviteEId(conviteIdOuCodigo, membroId);
     }
 
     @Override

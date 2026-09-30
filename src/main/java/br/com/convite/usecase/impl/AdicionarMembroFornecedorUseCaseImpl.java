@@ -40,6 +40,7 @@ public class AdicionarMembroFornecedorUseCaseImpl implements AdicionarMembroForn
         novoMembro.setFuncao((novoMembro.getFuncao() != null && !novoMembro.getFuncao().trim().isBlank())
                 ? novoMembro.getFuncao().trim() : "Equipe");
         novoMembro.setPresente(false);
+        novoMembro.setPermaneceAteFim(Boolean.TRUE.equals(novoMembro.getPermaneceAteFim()));
 
         f.getEquipe().add(novoMembro);
         f.setUpdatedAt(LocalDateTime.now());

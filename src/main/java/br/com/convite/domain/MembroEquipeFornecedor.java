@@ -17,4 +17,9 @@ public class MembroEquipeFornecedor {
     private String funcao;
     private Boolean presente;
     private LocalDateTime dataHoraEntrada;
+    /**
+     * Indica se este membro da equipe do fornecedor permanece até o fim do evento.
+     * Quando verdadeiro, este profissional conta automaticamente como convidado na contagem geral.
+     */
+    private Boolean permaneceAteFim;
 }

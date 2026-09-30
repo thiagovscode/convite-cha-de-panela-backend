@@ -10,10 +10,22 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class GerarRelatorioAuditoriaUseCaseImpl implements GerarRelatorioAuditoriaUseCase {
 
     private final ConviteGateway conviteGateway;
+    private final br.com.convite.gateway.FornecedorGateway fornecedorGateway;
+
+    public GerarRelatorioAuditoriaUseCaseImpl(ConviteGateway conviteGateway) {
+        this(conviteGateway, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public GerarRelatorioAuditoriaUseCaseImpl(
+            ConviteGateway conviteGateway,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) br.com.convite.gateway.FornecedorGateway fornecedorGateway) {
+        this.conviteGateway = conviteGateway;
+        this.fornecedorGateway = fornecedorGateway;
+    }
 
     @Override
     public RelatorioAuditoria executar() {
@@ -68,6 +80,28 @@ public class GerarRelatorioAuditoriaUseCaseImpl implements GerarRelatorioAuditor
                 }
             } else if ("RECUSADO".equalsIgnoreCase(c.getStatus())) {
                 totalRecusados++;
+            }
+        }
+
+        // Membros de fornecedores que permanecem até o fim contam como convidados
+        if (fornecedorGateway != null) {
+            for (br.com.convite.domain.Fornecedor f : fornecedorGateway.listarTodos()) {
+                if (f.getEquipe() != null) {
+                    for (br.com.convite.domain.MembroEquipeFornecedor m : f.getEquipe()) {
+                        if (Boolean.TRUE.equals(m.getPermaneceAteFim())) {
+                            totalConvidadosPrevistos++;
+                            totalAdultosPrevistos++;
+                            totalConfirmadosRsvp++;
+                            totalAdultosConfirmados++;
+                            if (Boolean.TRUE.equals(m.getPresente())) {
+                                totalPresentesReais++;
+                                totalAdultosPresentes++;
+                            } else {
+                                totalAguardandoChegada++;
+                            }
+                        }
+                    }
+                }
             }
         }
 

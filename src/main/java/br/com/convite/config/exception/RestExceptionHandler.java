@@ -117,6 +117,34 @@ public class RestExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException ex, HttpServletRequest request) {
+        log.warn("Recurso não encontrado [{}]: {}", request.getRequestURI(), ex.getMessage());
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .success(false)
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .message("Endpoint ou recurso não encontrado: " + request.getRequestURI())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodNotSupported(org.springframework.web.HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        log.warn("Método HTTP não suportado [{}]: {}", request.getRequestURI(), ex.getMessage());
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .success(false)
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.METHOD_NOT_ALLOWED.value())
+                .error(HttpStatus.METHOD_NOT_ALLOWED.getReasonPhrase())
+                .message("Método " + request.getMethod() + " não suportado para " + request.getRequestURI())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(body);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleErroGenerico(Exception ex, HttpServletRequest request) {
         log.error("Erro interno inesperado [{}]", request.getRequestURI(), ex);
