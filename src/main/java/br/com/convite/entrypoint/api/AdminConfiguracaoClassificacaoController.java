@@ -4,8 +4,10 @@ import br.com.convite.domain.PapelParticipante;
 import br.com.convite.domain.VinculoParticipante;
 import br.com.convite.entrypoint.api.model.ClassificacoesResponse;
 import br.com.convite.entrypoint.api.model.SalvarPapelRequest;
-import br.com.convite.entrypoint.api.model.SalvarVinculoRequest;
-import br.com.convite.usecase.*;
+import br.com.convite.usecase.ExcluirPapelUseCase;
+import br.com.convite.usecase.ListarPapeisUseCase;
+import br.com.convite.usecase.ListarVinculosUseCase;
+import br.com.convite.usecase.SalvarPapelUseCase;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,10 +25,7 @@ public class AdminConfiguracaoClassificacaoController {
     private final ListarPapeisUseCase listarPapeisUseCase;
     private final SalvarPapelUseCase salvarPapelUseCase;
     private final ExcluirPapelUseCase excluirPapelUseCase;
-
     private final ListarVinculosUseCase listarVinculosUseCase;
-    private final SalvarVinculoUseCase salvarVinculoUseCase;
-    private final ExcluirVinculoUseCase excluirVinculoUseCase;
 
     @GetMapping("/classificacoes")
     public ResponseEntity<ClassificacoesResponse> obterClassificacoes() {
@@ -79,57 +78,6 @@ public class AdminConfiguracaoClassificacaoController {
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("success", true);
         resp.put("message", "Papel removido com sucesso!");
-        return ResponseEntity.ok(resp);
-    }
-
-    // --- VÍNCULOS (Legado mantido para retrocompatibilidade) ---
-    @Deprecated(since = "2.0", forRemoval = true)
-    @GetMapping("/vinculos")
-    public ResponseEntity<List<VinculoParticipante>> listarVinculos() {
-        return ResponseEntity.ok()
-                .header("Deprecation", "true")
-                .header("Sunset", "Wed, 31 Dec 2026 23:59:59 GMT")
-                .body(listarVinculosUseCase.executar());
-    }
-
-    @Deprecated(since = "2.0", forRemoval = true)
-    @PostMapping("/vinculos")
-    public ResponseEntity<?> criarVinculo(@Valid @RequestBody SalvarVinculoRequest req) {
-        VinculoParticipante vinculo = VinculoParticipante.builder()
-                .nome(req.getNome())
-                .build();
-        VinculoParticipante salvo = salvarVinculoUseCase.executar(vinculo);
-
-        Map<String, Object> resp = new LinkedHashMap<>();
-        resp.put("success", true);
-        resp.put("message", "Vínculo cadastrado com sucesso!");
-        resp.put("vinculo", salvo);
-        return ResponseEntity.ok(resp);
-    }
-
-    @Deprecated(since = "2.0", forRemoval = true)
-    @PutMapping("/vinculos/{id}")
-    public ResponseEntity<?> atualizarVinculo(@PathVariable String id, @Valid @RequestBody SalvarVinculoRequest req) {
-        VinculoParticipante vinculo = VinculoParticipante.builder()
-                .id(id)
-                .nome(req.getNome())
-                .build();
-        VinculoParticipante salvo = salvarVinculoUseCase.executar(vinculo);
-
-        Map<String, Object> resp = new LinkedHashMap<>();
-        resp.put("success", true);
-        resp.put("message", "Vínculo atualizado com sucesso!");
-        resp.put("vinculo", salvo);
-        return ResponseEntity.ok(resp);
-    }
-
-    @Deprecated(since = "2.0", forRemoval = true)
-    @DeleteMapping("/vinculos/{id}")
-    public ResponseEntity<?> excluirVinculo(@PathVariable String id) {
-        excluirVinculoUseCase.executar(id);
-        Map<String, Object> resp = new LinkedHashMap<>();
-        resp.put("success", true);
-        resp.put("message", "Vínculo removido com sucesso!");
         return ResponseEntity.ok(resp);
     }
 }
