@@ -19,5 +19,9 @@ public interface ConviteCasamentoRepository extends MongoRepository<ConviteCasam
            "{ 'membros.nome': { '$regex': ?0, '$options': 'i' } } " +
            "] }")
     List<ConviteCasamentoEntity> buscarPorTermoGeral(String termo);
+
+    /** Busca convites que possuem um membro com o nome informado (case-insensitive, busca exata no array) */
+    @Query("{ 'membros.nome': { '$regex': ?0, '$options': 'i' } }")
+    List<ConviteCasamentoEntity> findByMembrosNomeRegex(String nomeRegex);
 }
 

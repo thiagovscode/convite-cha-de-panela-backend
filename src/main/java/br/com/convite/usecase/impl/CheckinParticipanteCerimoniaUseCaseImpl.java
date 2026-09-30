@@ -40,7 +40,12 @@ public class CheckinParticipanteCerimoniaUseCaseImpl implements CheckinParticipa
         p.setDataHoraEntrada(novoStatus ? LocalDateTime.now() : null);
 
         if (statusCortejo != null && !statusCortejo.isBlank()) {
-            p.setStatusCortejo(statusCortejo.trim().toUpperCase());
+            String statusNorm = statusCortejo.trim().toUpperCase();
+            if (!java.util.Set.of("AGUARDANDO_CHEGADA", "NO_LOCAL").contains(statusNorm)) {
+                throw new RegraDeNegocioException(
+                        "Status do cortejo inválido. Valores aceitos: AGUARDANDO_CHEGADA, NO_LOCAL");
+            }
+            p.setStatusCortejo(statusNorm);
         } else if (novoStatus) {
             if (p.getStatusCortejo() == null || "AGUARDANDO_CHEGADA".equalsIgnoreCase(p.getStatusCortejo())) {
                 p.setStatusCortejo("NO_LOCAL");

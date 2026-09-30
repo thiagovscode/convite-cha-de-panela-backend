@@ -34,20 +34,13 @@ public class RecepcaoCheckinController {
     private final AutenticarUsuarioUseCase autenticarUsuarioUseCase;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> creds) {
-        String username = creds.get("username");
-        String password = creds.get("password");
-
-        if (username == null || password == null || username.trim().isBlank() || password.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Usuário e senha são obrigatórios."));
-        }
-
+    public ResponseEntity<?> login(@jakarta.validation.Valid @RequestBody RecepcaoLoginRequest creds) {
         try {
-            String token = autenticarUsuarioUseCase.executar(username.trim(), password);
+            String token = autenticarUsuarioUseCase.executar(creds.getUsername().trim(), creds.getPassword());
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "token", token,
-                    "username", username.trim()
+                    "username", creds.getUsername().trim()
             ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
@@ -213,10 +206,14 @@ public class RecepcaoCheckinController {
             @PathVariable String fornecedorId,
             @RequestBody MembroEquipeFornecedor novoMembro) {
         Fornecedor salvo = adicionarMembroFornecedorUseCase.executar(fornecedorId, novoMembro);
+        // Retorna o membro do objeto salvo (já com ID gerado) em vez do objeto do request
+        MembroEquipeFornecedor membroSalvo = salvo.getEquipe() != null && !salvo.getEquipe().isEmpty()
+                ? salvo.getEquipe().get(salvo.getEquipe().size() - 1)
+                : novoMembro;
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "Membro adicionado à equipe",
-                "membro", novoMembro,
+                "membro", membroSalvo,
                 "fornecedor", salvo
         ));
     }

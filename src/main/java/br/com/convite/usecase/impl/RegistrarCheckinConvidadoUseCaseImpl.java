@@ -37,6 +37,10 @@ public class RegistrarCheckinConvidadoUseCaseImpl implements RegistrarCheckinCon
             throw new RegraDeNegocioException("Convite não possui membros cadastrados");
         }
 
+        if (comando.presencas() == null || comando.presencas().isEmpty()) {
+            throw new RegraDeNegocioException("É necessário informar a presença de pelo menos um membro.");
+        }
+
         // Validação de Duplicidade: Impede registrar se todos já entraram
         boolean todosJaEstavamNoEvento = convite.getMembros().stream()
                 .allMatch(m -> Boolean.TRUE.equals(m.getPresenteCheckin()));

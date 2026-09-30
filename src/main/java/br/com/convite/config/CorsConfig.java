@@ -1,18 +1,5 @@
 package br.com.convite.config;
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-@Configuration
-public class CorsConfig implements WebMvcConfigurer {
-
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOriginPatterns("*")
-                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true);
-    }
-}
+// REMOVIDO: configuração CORS consolidada em SecurityConfig.corsConfigurationSource()
+// Esta classe foi mantida vazia para preservar compatibilidade de pacote.
+// Ver: config/security/SecurityConfig.java

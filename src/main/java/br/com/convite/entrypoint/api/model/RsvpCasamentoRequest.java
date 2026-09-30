@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -17,6 +18,9 @@ public class RsvpCasamentoRequest {
     private String nome;
 
     @NotBlank(message = "O telefone e obrigatorio.")
+    @Pattern(
+            regexp = "^[\\d\\s()\\-+.]{8,20}$",
+            message = "Telefone invalido. Informe entre 8 e 20 digitos.")
     private String telefone;
 
     @Email(message = "O e-mail informado nao e valido.")

@@ -10,6 +10,8 @@ public interface ConviteGateway {
     Optional<Convite> buscarPorCodigo(String codigo);
     Optional<Convite> buscarPorId(String id);
     List<Convite> buscarPorTermo(String termo);
+    /** Busca convites que possuem um membro com exatamente o nome informado */
+    List<Convite> buscarPorNomeMembro(String nomeMembro);
     Convite salvar(Convite convite);
     void excluir(Convite convite);
     long contarTotal();

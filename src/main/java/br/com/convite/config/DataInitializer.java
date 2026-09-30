@@ -3,6 +3,7 @@ package br.com.convite.config;
 import br.com.convite.gateway.persistence.UsuarioRepository;
 import br.com.convite.gateway.persistence.entity.UsuarioEntity;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
@@ -60,14 +62,14 @@ public class DataInitializer implements CommandLineRunner {
                     .password(passwordEncoder.encode(finalAdminPass))
                     .build();
             usuarioRepository.save(admin);
-            System.out.println("✅ Usuário admin criado pela primeira vez com a senha nova.");
+            log.info("Inicializacao de dados concluida.");
         } else {
             UsuarioEntity admin = admins.get(0);
             if (admins.size() > 1) {
                 for (int i = 1; i < admins.size(); i++) {
                     usuarioRepository.delete(admins.get(i));
                 }
-                System.out.println("🧹 Limpeza de usuários duplicados 'admin' no banco concluída.");
+                log.info("Inicializacao de dados concluida.");
             }
 
             // Sincroniza e garante incondicionalmente a senha atualizada no banco de dados
@@ -75,7 +77,7 @@ public class DataInitializer implements CommandLineRunner {
             admin.setRole("ADMIN");
             admin.setPassword(passwordEncoder.encode(finalAdminPass));
             usuarioRepository.save(admin);
-            System.out.println("🔑 Senha do admin sincronizada e atualizada com sucesso no banco de dados.");
+            log.info("Inicializacao de dados concluida.");
         }
 
         // 2. Usuário de Recepção (Portaria)
@@ -89,14 +91,14 @@ public class DataInitializer implements CommandLineRunner {
                     .password(passwordEncoder.encode(finalRecepcaoPass))
                     .build();
             usuarioRepository.save(recepcao);
-            System.out.println("✅ Usuário recepção criado pela primeira vez com a senha nova.");
+            log.info("Inicializacao de dados concluida.");
         } else {
             UsuarioEntity recepcao = recepcoes.get(0);
             if (recepcoes.size() > 1) {
                 for (int i = 1; i < recepcoes.size(); i++) {
                     usuarioRepository.delete(recepcoes.get(i));
                 }
-                System.out.println("🧹 Limpeza de usuários duplicados 'recepcao' no banco concluída.");
+                log.info("Inicializacao de dados concluida.");
             }
 
             // Sincroniza e garante incondicionalmente a senha atualizada no banco de dados
@@ -235,7 +237,7 @@ public class DataInitializer implements CommandLineRunner {
                     .build();
 
             conviteRepository.saveAll(List.of(convite1, convite2, convite3, convite4, convite5));
-            System.out.println("✅ Convites modelo de demonstração inicializados com sucesso.");
+            log.info("Inicializacao de dados concluida.");
         }
     }
 
@@ -327,7 +329,7 @@ public class DataInitializer implements CommandLineRunner {
                     .build();
 
             participanteRepository.saveAll(List.of(p1, p2, p3, p4, p5, p6, p7));
-            System.out.println("✅ Participantes da cerimônia (cortejo) inicializados.");
+            log.info("Participantes de cerimonia de demonstracao inicializados.");
         }
     }
 
@@ -423,7 +425,7 @@ public class DataInitializer implements CommandLineRunner {
                     .build();
 
             fornecedorRepository.saveAll(List.of(f1, f2, f3, f4));
-            System.out.println("✅ Fornecedores credenciados com equipes nominais inicializados.");
+            log.info("Inicializacao de dados concluida.");
         }
     }
 
@@ -442,7 +444,7 @@ public class DataInitializer implements CommandLineRunner {
                     br.com.convite.gateway.persistence.entity.PapelParticipanteEntity.builder().nome("Outro").cortejo(false).createdAt(agora).updatedAt(agora).build()
             );
             papelRepository.saveAll(papeis);
-            System.out.println("✅ Papéis padrão inicializados com sucesso.");
+            log.info("Papeis padrao inicializados com sucesso.");
         } else {
             // Migração de bancos existentes: renomeia 'Convidado comum' -> 'Convidado' e remove 'Cortejo' como papel
             papelRepository.findByNomeIgnoreCase("Convidado comum").ifPresent(p -> {
@@ -466,7 +468,7 @@ public class DataInitializer implements CommandLineRunner {
                     br.com.convite.gateway.persistence.entity.VinculoParticipanteEntity.builder().nome("Outro").createdAt(agora).updatedAt(agora).build()
             );
             vinculoRepository.saveAll(vinculos);
-            System.out.println("✅ Vínculos padrão inicializados com sucesso.");
+            log.info("Vinculos padrao inicializados com sucesso.");
         }
     }
 }

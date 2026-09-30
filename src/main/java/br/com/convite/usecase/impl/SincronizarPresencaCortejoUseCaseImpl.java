@@ -26,9 +26,10 @@ public class SincronizarPresencaCortejoUseCaseImpl implements SincronizarPresenc
         for (ParticipanteCerimonia p : todos) {
             boolean mesmoConvite = p.getCodigoConvite() != null && p.getCodigoConvite().equalsIgnoreCase(codigoConvite);
             String pNomeNorm = normalizar(p.getNome());
-            boolean mesmoNome = pNomeNorm.equalsIgnoreCase(nomeNorm) || pNomeNorm.contains(nomeNorm) || nomeNorm.contains(pNomeNorm);
+            // Correspondência estrita por igualdade de nome — evita marcar participantes com nome similar por engano
+            boolean mesmoNome = pNomeNorm.equalsIgnoreCase(nomeNorm);
 
-            if ((mesmoConvite && mesmoNome) || mesmoNome) {
+            if (mesmoConvite && mesmoNome) {
                 p.setPresenteCheckin(presente);
                 p.setDataHoraEntrada(presente ? agora : null);
                 if (presente) {

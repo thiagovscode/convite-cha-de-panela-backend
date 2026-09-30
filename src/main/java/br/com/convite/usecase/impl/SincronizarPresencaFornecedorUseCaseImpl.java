@@ -29,7 +29,8 @@ public class SincronizarPresencaFornecedorUseCaseImpl implements SincronizarPres
             if (f.getEquipe() != null) {
                 for (MembroEquipeFornecedor mEquipe : f.getEquipe()) {
                     String mNorm = normalizar(mEquipe.getNome());
-                    if (mNorm.equalsIgnoreCase(nomeNorm) || mNorm.contains(nomeNorm) || nomeNorm.contains(mNorm)) {
+                    // Correspondência estrita por igualdade — evita marcar membro errado por nome parcial
+                    if (mNorm.equalsIgnoreCase(nomeNorm)) {
                         mEquipe.setPresente(presente);
                         mEquipe.setDataHoraEntrada(presente ? agora : null);
                         alterou = true;

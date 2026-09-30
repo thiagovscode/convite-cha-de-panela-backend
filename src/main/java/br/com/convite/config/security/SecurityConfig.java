@@ -39,6 +39,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/", "/health", "/error").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/convites/fornecedor/*/membros").hasAnyRole("RECEPCAO", "ADMIN")
                 .requestMatchers("/api/convites/**").permitAll()
                 .requestMatchers("/api/rsvp/**").permitAll()
                 .requestMatchers("/api/classificacoes/**").permitAll()
@@ -56,8 +57,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Permite qualquer origem (Frontend no GitHub Pages, Vercel, Localhost, etc)
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        // Permite origens conhecidas do frontend (produção e desenvolvimento)
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+                "https://thiagovscode.github.io",
+                "https://*.vercel.app",
+                "http://localhost:[*]",
+                "http://127.0.0.1:[*]"
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
@@ -74,22 +80,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder();
-        return new PasswordEncoder() {
-            @Override
-            public String encode(CharSequence rawPassword) {
-                return bcrypt.encode(rawPassword);
-            }
-
-            @Override
-            public boolean matches(CharSequence rawPassword, String encodedPassword) {
-                if (encodedPassword == null || rawPassword == null) return false;
-                if (encodedPassword.startsWith("$2a$") || encodedPassword.startsWith("$2b$") || encodedPassword.startsWith("$2y$")) {
-                    return bcrypt.matches(rawPassword, encodedPassword);
-                }
-                // Suporte resiliente caso tenha sido gravado texto puro antes da migração
-                return rawPassword.toString().equals(encodedPassword);
-            }
-        };
+        return new BCryptPasswordEncoder();
     }
 }

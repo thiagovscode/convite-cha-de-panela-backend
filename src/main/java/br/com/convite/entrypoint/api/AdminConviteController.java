@@ -75,9 +75,10 @@ public class AdminConviteController {
         }
 
         // Se informou um par, atualiza reciprocamente no convite do par se existir cadastrado
+        // Usa busca direcionada por nome de membro em vez de listarTodos() para evitar N+1
         if (nomePar != null && !nomePar.isBlank() && finalNomeMembro != null) {
             String buscaPar = nomePar.trim();
-            for (Convite outro : conviteGateway.listarTodos()) {
+            for (Convite outro : conviteGateway.buscarPorNomeMembro(buscaPar)) {
                 if (!outro.getCodigo().equalsIgnoreCase(convitePrincipal.getCodigo()) && outro.getMembros() != null) {
                     boolean alterou = false;
                     for (MembroConvite m : outro.getMembros()) {
@@ -126,10 +127,6 @@ public class AdminConviteController {
         return ResponseEntity.ok(resp);
     }
 
-    @PostMapping("/cadastrar")
-    public ResponseEntity<?> cadastrar(@Valid @RequestBody SalvarConviteAdminRequest req) {
-        return salvarOuAtualizar(req);
-    }
 
     @DeleteMapping("/{codigoOuId}")
     public ResponseEntity<?> excluir(@PathVariable String codigoOuId) {

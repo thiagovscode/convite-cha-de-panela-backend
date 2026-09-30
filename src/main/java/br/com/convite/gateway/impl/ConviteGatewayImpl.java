@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Component
 @RequiredArgsConstructor
@@ -38,9 +39,18 @@ public class ConviteGatewayImpl implements ConviteGateway {
     @Override
     public List<Convite> buscarPorTermo(String termo) {
         if (termo == null || termo.isBlank()) return List.of();
-        String t = termo.trim();
-        List<ConviteCasamentoEntity> entities = repository.buscarPorTermoGeral(t);
+        // Escapa caracteres especiais de regex antes de passar para o MongoDB
+        String termoSeguro = Pattern.quote(termo.trim());
+        List<ConviteCasamentoEntity> entities = repository.buscarPorTermoGeral(termoSeguro);
         return mapper.toDomainList(entities);
+    }
+
+    @Override
+    public List<Convite> buscarPorNomeMembro(String nomeMembro) {
+        if (nomeMembro == null || nomeMembro.isBlank()) return List.of();
+        // Usa Pattern.quote para busca literal do nome (evita regex injection)
+        String nomeRegex = java.util.regex.Pattern.quote(nomeMembro.trim());
+        return mapper.toDomainList(repository.findByMembrosNomeRegex(nomeRegex));
     }
 
     @Override

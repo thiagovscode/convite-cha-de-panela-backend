@@ -22,6 +22,10 @@ public class RsvpCasamentoGatewayImpl implements RsvpCasamentoGateway {
 
     @Override
     public RsvpCasamento salvarOuAtualizar(RsvpCasamento rsvp) {
+        // Normaliza telefone antes de persistir — evita duplicatas por formato diferente
+        if (rsvp.getTelefone() != null) {
+            rsvp.setTelefone(rsvp.getTelefone().replaceAll("\\D", ""));
+        }
         Optional<RsvpCasamentoEntity> existente = repository.findByTelefone(rsvp.getTelefone());
 
         RsvpCasamentoEntity entity;
@@ -49,7 +53,13 @@ public class RsvpCasamentoGatewayImpl implements RsvpCasamentoGateway {
     @Override
     public Optional<RsvpCasamento> buscarPorTelefone(String telefone) {
         if (telefone == null || telefone.isBlank()) return Optional.empty();
-        return repository.findByTelefone(telefone.trim()).map(mapper::toDomain);
+        // Normaliza telefone para busca consistente
+        String telNorm = telefone.replaceAll("\\D", "");
+        Optional<RsvpCasamento> result = repository.findByTelefone(telNorm).map(mapper::toDomain);
+        if (result.isEmpty()) {
+            result = repository.findByTelefone(telefone.trim()).map(mapper::toDomain);
+        }
+        return result;
     }
 
     @Override

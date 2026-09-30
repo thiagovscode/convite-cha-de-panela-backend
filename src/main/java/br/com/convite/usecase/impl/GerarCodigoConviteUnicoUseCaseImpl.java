@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +28,6 @@ public class GerarCodigoConviteUnicoUseCaseImpl implements GerarCodigoConviteUni
                 return gerado;
             }
         }
-        return "tn-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        throw new br.com.convite.exception.RegraDeNegocioException("Não foi possível gerar um código único para o convite. Tente novamente.");
     }
 }

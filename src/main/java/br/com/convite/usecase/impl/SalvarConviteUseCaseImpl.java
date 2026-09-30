@@ -27,16 +27,39 @@ public class SalvarConviteUseCaseImpl implements SalvarConviteUseCase {
         }
 
         // Gera código único somente se não tiver sido informado
-        String codigo = (dados.getCodigo() == null || dados.getCodigo().trim().isBlank())
-                ? gerarCodigoConviteUnicoUseCase.executar()
-                : dados.getCodigo().trim().toLowerCase().replaceAll("[^a-z0-9-_]", "");
+        String codigo;
+        if (dados.getCodigo() == null || dados.getCodigo().trim().isBlank()) {
+            codigo = gerarCodigoConviteUnicoUseCase.executar();
+        } else {
+            codigo = dados.getCodigo().trim().toLowerCase().replaceAll("[^a-z0-9-_]", "");
+            if (codigo.length() < 4) {
+                throw new RegraDeNegocioException("O código do convite deve ter pelo menos 4 caracteres válidos (letras e números).");
+            }
+            if (codigo.length() > 40) {
+                throw new RegraDeNegocioException("O código do convite não pode ter mais de 40 caracteres.");
+            }
+        }
 
-        Convite convite = conviteGateway.buscarPorCodigo(codigo)
-                .orElseGet(() -> Convite.builder()
-                        .codigo(codigo)
-                        .createdAt(LocalDateTime.now())
-                        .status("PENDENTE")
-                        .build());
+        // Verifica conflito: código informado pertence a outra família?
+        Convite convite;
+        Optional<Convite> existenteOpt = conviteGateway.buscarPorCodigo(codigo);
+        if (existenteOpt.isPresent()) {
+            Convite existente = existenteOpt.get();
+            boolean mesmoCodigo = dados.getId() != null && dados.getId().equals(existente.getId());
+            boolean mesmaFamilia = dados.getFamilia() != null &&
+                    dados.getFamilia().trim().equalsIgnoreCase(existente.getFamilia());
+            if (!mesmoCodigo && !mesmaFamilia) {
+                throw new br.com.convite.exception.ConflitoNegocioException(
+                        "Este código de convite já está em uso por outra família. Escolha um código diferente.");
+            }
+            convite = existente;
+        } else {
+            convite = Convite.builder()
+                    .codigo(codigo)
+                    .createdAt(LocalDateTime.now())
+                    .status("PENDENTE")
+                    .build();
+        }
 
         convite.setFamilia(dados.getFamilia().trim());
         convite.setTelefone(dados.getTelefone() != null ? dados.getTelefone().trim() : null);

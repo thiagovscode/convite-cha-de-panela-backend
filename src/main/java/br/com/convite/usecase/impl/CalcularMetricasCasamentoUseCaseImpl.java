@@ -58,23 +58,19 @@ public class CalcularMetricasCasamentoUseCaseImpl implements CalcularMetricasCas
                     }
                 }
             } else {
-                totalPessoas++;
-                if ("CONFIRMADO".equals(status)) {
-                    totalConfirmados++;
-                    totalAdultosConfirmados++;
-                } else if ("RECUSADO".equals(status)) {
-                    totalRecusaram++;
-                }
+                // Convite sem membros: não contabiliza pessoas (dado inconsistente)
+                // Apenas conta o convite em si (já contado no status acima)
             }
         }
 
         long totalPendentes = Math.max(0, totalPessoas - totalConfirmados - totalRecusaram);
         long totalRespondidos = totalConfirmados + totalRecusaram;
 
-        double taxaConfirmacao = totalPessoas > 0 ? Math.round(((double) totalConfirmados / totalPessoas) * 100.0) : 0;
-        double taxaRecusa = totalPessoas > 0 ? Math.round(((double) totalRecusaram / totalPessoas) * 100.0) : 0;
-        double taxaPendentes = totalPessoas > 0 ? Math.max(0, 100 - taxaConfirmacao - taxaRecusa) : 0;
-        double taxaPresencaRespondidos = totalRespondidos > 0 ? Math.round(((double) totalConfirmados / totalRespondidos) * 100.0) : 0;
+        // Calcula 2 taxas diretamente e deriva a 3ª por subtração para garantir soma = 100%
+        double taxaConfirmacao = totalPessoas > 0 ? Math.round(((double) totalConfirmados / totalPessoas) * 1000.0) / 10.0 : 0;
+        double taxaRecusa = totalPessoas > 0 ? Math.round(((double) totalRecusaram / totalPessoas) * 1000.0) / 10.0 : 0;
+        double taxaPendentes = totalPessoas > 0 ? Math.max(0.0, Math.round((100.0 - taxaConfirmacao - taxaRecusa) * 10.0) / 10.0) : 0;
+        double taxaPresencaRespondidos = totalRespondidos > 0 ? Math.round(((double) totalConfirmados / totalRespondidos) * 1000.0) / 10.0 : 0;
 
         return MetricasCasamento.builder()
                 .totalConvites(totalConvites)
