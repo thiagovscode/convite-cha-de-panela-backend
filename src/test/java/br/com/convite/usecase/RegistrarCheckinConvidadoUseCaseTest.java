@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -46,9 +47,11 @@ class RegistrarCheckinConvidadoUseCaseTest {
     @Test
     @DisplayName("Deve registrar checkin nominal na recepção com sucesso")
     void deveRegistrarCheckinComSucesso() {
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
         List<MembroConvite> membros = new ArrayList<>();
-        membros.add(MembroConvite.builder().id("m1").nome("Ana").presenteCheckin(false).build());
-        membros.add(MembroConvite.builder().id("m2").nome("Beto").presenteCheckin(false).build());
+        membros.add(MembroConvite.builder().id(id1).nome("Ana").presenteCheckin(false).build());
+        membros.add(MembroConvite.builder().id(id2).nome("Beto").presenteCheckin(false).build());
 
         Convite convite = Convite.builder()
                 .id("c1")
@@ -63,8 +66,8 @@ class RegistrarCheckinConvidadoUseCaseTest {
                 "ABC12",
                 "Portaria 1",
                 List.of(
-                        new RegistrarCheckinConvidadoUseCase.PresencaMembro("m1", true),
-                        new RegistrarCheckinConvidadoUseCase.PresencaMembro("m2", false)
+                        new RegistrarCheckinConvidadoUseCase.PresencaMembro(id1.toString(), true),
+                        new RegistrarCheckinConvidadoUseCase.PresencaMembro(id2.toString(), false)
                 )
         );
 
@@ -80,8 +83,9 @@ class RegistrarCheckinConvidadoUseCaseTest {
     @Test
     @DisplayName("Deve impedir duplicidade quando todos já entraram")
     void deveBloquearDuplicidadeQuandoTodosJaEntraram() {
+        UUID idJaEntrou = UUID.randomUUID();
         List<MembroConvite> membros = List.of(
-                MembroConvite.builder().id("m1").nome("Ana").presenteCheckin(true).build()
+                MembroConvite.builder().id(idJaEntrou).nome("Ana").presenteCheckin(true).build()
         );
 
         Convite convite = Convite.builder()
@@ -96,7 +100,7 @@ class RegistrarCheckinConvidadoUseCaseTest {
                 "JA_ENTROU",
                 "Portaria 1",
                 List.of(
-                        new RegistrarCheckinConvidadoUseCase.PresencaMembro("m1", true)
+                        new RegistrarCheckinConvidadoUseCase.PresencaMembro(idJaEntrou.toString(), true)
                 )
         );
 

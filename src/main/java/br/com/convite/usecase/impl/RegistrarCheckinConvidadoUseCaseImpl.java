@@ -44,7 +44,7 @@ public class RegistrarCheckinConvidadoUseCaseImpl implements RegistrarCheckinCon
 
         // Validação estrita de escopo: garante que cada membro informado pertence exclusivamente a este convite
         java.util.Set<String> idsMembrosValidos = convite.getMembros().stream()
-                .map(MembroConvite::getId)
+                .map(m -> m.getId() != null ? m.getId().toString() : null)
                 .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toSet());
 
@@ -60,7 +60,7 @@ public class RegistrarCheckinConvidadoUseCaseImpl implements RegistrarCheckinCon
 
         boolean algumaNovaEntrada = comando.presencas() != null && comando.presencas().stream()
                 .anyMatch(p -> Boolean.TRUE.equals(p.presente()) &&
-                        convite.getMembros().stream().anyMatch(m -> m.getId().equals(p.membroId()) && !Boolean.TRUE.equals(m.getPresenteCheckin())));
+                        convite.getMembros().stream().anyMatch(m -> m.getId() != null && m.getId().toString().equalsIgnoreCase(p.membroId()) && !Boolean.TRUE.equals(m.getPresenteCheckin())));
 
         if (todosJaEstavamNoEvento && !algumaNovaEntrada) {
             throw new CheckinDuplicadoException();
@@ -81,8 +81,9 @@ public class RegistrarCheckinConvidadoUseCaseImpl implements RegistrarCheckinCon
         int totalAusentes = 0;
 
         for (MembroConvite membro : convite.getMembros()) {
-            if (mapaPresenca.containsKey(membro.getId())) {
-                boolean presente = mapaPresenca.get(membro.getId());
+            String mIdStr = membro.getId() != null ? membro.getId().toString() : null;
+            if (mIdStr != null && mapaPresenca.containsKey(mIdStr)) {
+                boolean presente = mapaPresenca.get(mIdStr);
                 membro.setPresenteCheckin(presente);
                 membro.setRecepcionista(operador);
                 if (presente) {

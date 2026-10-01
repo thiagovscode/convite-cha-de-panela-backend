@@ -48,10 +48,9 @@ public class SincronizarCortejoConviteUseCaseImpl implements SincronizarCortejoC
         for (MembroConvite membro : convite.getMembros()) {
             if (membro.getNome() == null || membro.getNome().trim().isBlank()) continue;
 
-            String papel = membro.getPapel();
-            if (papel == null || papel.isBlank()) {
-                papel = convite.getPapel();
-            }
+            String papel = (membro.getPapel() != null && !membro.getPapel().isBlank())
+                    ? membro.getPapel().trim()
+                    : "Convidado";
 
             boolean deveParticipar;
             if (membro.getParticipaCortejo() != null) {
@@ -73,34 +72,13 @@ public class SincronizarCortejoConviteUseCaseImpl implements SincronizarCortejoC
             boolean isPresente = Boolean.TRUE.equals(membro.getPresenteCheckin());
             Boolean rsvpOk = conviteRecusado ? Boolean.FALSE : membro.getConfirmadoRsvp();
 
-            String parMembro = membro.getPar();
-            if (parMembro == null || parMembro.isBlank()) {
-                for (MembroConvite outro : convite.getMembros()) {
-                    if (outro != membro && outro.getNome() != null && !outro.getNome().trim().isBlank()) {
-                        boolean outroCortejo;
-                        if (outro.getParticipaCortejo() != null) {
-                            outroCortejo = Boolean.TRUE.equals(outro.getParticipaCortejo());
-                        } else {
-                            String outroPapel = outro.getPapel() != null && !outro.getPapel().isBlank() ? outro.getPapel() : convite.getPapel();
-                            outroCortejo = isPapelCortejo(outroPapel);
-                        }
-                        if (outroCortejo) {
-                            parMembro = outro.getNome().trim();
-                            break;
-                        }
-                    }
-                }
-            }
-            String finalPar = (parMembro != null && !parMembro.isBlank()) ? parMembro.trim() : null;
+            String finalPar = (membro.getPar() != null && !membro.getPar().isBlank()) ? membro.getPar().trim() : null;
 
             if (participante != null) {
                 // Atualiza existente
                 participante.setNome(membro.getNome().trim());
                 if (membro.getPapel() != null && !membro.getPapel().isBlank()) {
                     participante.setPapel(membro.getPapel().trim());
-                }
-                if (membro.getVinculo() != null && !membro.getVinculo().isBlank()) {
-                    participante.setVinculo(membro.getVinculo().trim());
                 }
                 participante.setPar(finalPar);
                 participante.setTelefone(convite.getTelefone());
@@ -120,7 +98,6 @@ public class SincronizarCortejoConviteUseCaseImpl implements SincronizarCortejoC
                         .id(UUID.randomUUID().toString())
                         .nome(membro.getNome().trim())
                         .papel(membro.getPapel() != null && !membro.getPapel().isBlank() ? membro.getPapel().trim() : papel)
-                        .vinculo(membro.getVinculo() != null && !membro.getVinculo().isBlank() ? membro.getVinculo().trim() : "Casal")
                         .par(finalPar)
                         .codigoConvite(codigoConvite)
                         .telefone(convite.getTelefone())

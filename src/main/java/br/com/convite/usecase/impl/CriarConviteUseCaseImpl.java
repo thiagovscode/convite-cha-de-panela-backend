@@ -6,6 +6,7 @@ import br.com.convite.exception.ConflitoNegocioException;
 import br.com.convite.exception.RegraDeNegocioException;
 import br.com.convite.gateway.ConviteGateway;
 import br.com.convite.usecase.CriarConviteUseCase;
+import br.com.convite.usecase.DefinirParCortejoUseCase;
 import br.com.convite.usecase.GerarCodigoConviteUnicoUseCase;
 import br.com.convite.usecase.SincronizarCortejoConviteUseCase;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class CriarConviteUseCaseImpl implements CriarConviteUseCase {
     private final ConviteGateway conviteGateway;
     private final GerarCodigoConviteUnicoUseCase gerarCodigoConviteUnicoUseCase;
     private final SincronizarCortejoConviteUseCase sincronizarCortejoConviteUseCase;
+    private final DefinirParCortejoUseCase definirParCortejoUseCase;
 
     @Override
     public Convite executar(Convite dados) {
@@ -60,7 +62,6 @@ public class CriarConviteUseCaseImpl implements CriarConviteUseCase {
                 .familia(dados.getFamilia().trim())
                 .telefone(dados.getTelefone() != null && !dados.getTelefone().isBlank() ? dados.getTelefone().trim() : null)
                 .email(dados.getEmail() != null && !dados.getEmail().isBlank() ? dados.getEmail().trim() : null)
-                .papel(dados.getPapel() != null && !dados.getPapel().isBlank() ? dados.getPapel().trim() : null)
                 .observacao(dados.getObservacao() != null && !dados.getObservacao().isBlank() ? dados.getObservacao().trim() : null)
                 .status("PENDENTE")
                 .createdAt(agora)
@@ -72,6 +73,15 @@ public class CriarConviteUseCaseImpl implements CriarConviteUseCase {
 
         // Sincroniza participantes do cortejo se houver
         sincronizarCortejoConviteUseCase.executar(salvo);
+
+        // Sincroniza pares recíprocos se informados
+        if (salvo.getMembros() != null) {
+            for (MembroConvite m : salvo.getMembros()) {
+                if (m.getPar() != null && !m.getPar().isBlank()) {
+                    definirParCortejoUseCase.executar(salvo.getCodigo(), m.getId() != null ? m.getId().toString() : null, m.getNome(), m.getPar());
+                }
+            }
+        }
 
         return salvo;
     }
@@ -85,20 +95,13 @@ public class CriarConviteUseCaseImpl implements CriarConviteUseCase {
         for (MembroConvite m : membros) {
             if (m.getNome() == null || m.getNome().trim().isBlank()) continue;
 
-            String id = (m.getId() != null && !m.getId().isBlank()) ? m.getId().trim() : UUID.randomUUID().toString();
-
             resultado.add(MembroConvite.builder()
-                    .id(id)
+                    .id(m.getId())
                     .nome(m.getNome().trim())
                     .criancaAte6Anos(Boolean.TRUE.equals(m.getCriancaAte6Anos()))
-                    .papel(m.getPapel() != null ? m.getPapel().trim() : null)
-                    .vinculo(m.getVinculo() != null ? m.getVinculo().trim() : null)
+                    .papel(m.getPapel())
                     .par(m.getPar() != null && !m.getPar().isBlank() ? m.getPar().trim() : null)
                     .participaCortejo(m.getParticipaCortejo())
-                    .confirmadoRsvp(null)
-                    .presenteCheckin(null)
-                    .dataHoraCheckin(null)
-                    .recepcionista(null)
                     .build());
         }
 

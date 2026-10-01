@@ -38,7 +38,7 @@ class BuscarConvitePorCodigoUseCaseTest {
                 .codigo("FAMILIA123")
                 .familia("Família Silva")
                 .membros(List.of(
-                        MembroConvite.builder().id("m-1").nome("Carlos Silva").build()
+                        MembroConvite.builder().id(java.util.UUID.randomUUID()).nome("Carlos Silva").build()
                 ))
                 .build();
 

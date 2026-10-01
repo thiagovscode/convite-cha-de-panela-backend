@@ -278,7 +278,7 @@ public class RecepcaoCheckinController {
                 .familia(c.getFamilia())
                 .statusRsvp(c.getStatus() != null ? c.getStatus() : "PENDENTE")
                 .telefone(c.getTelefone())
-                .papel(c.getPapel())
+                .papel(null)
                 .totalMembros(c.getMembros() != null ? c.getMembros().size() : 0)
                 .confirmadosRsvp((int) confirmados)
                 .presentesCheckin((int) presentes)
@@ -289,7 +289,7 @@ public class RecepcaoCheckinController {
 
     private ItemAuditoriaMembroResponse toMembroAuditoria(MembroConvite m) {
         return ItemAuditoriaMembroResponse.builder()
-                .id(m.getId())
+                .id(m.getId() != null ? m.getId().toString() : null)
                 .nome(m.getNome())
                 .criancaAte6Anos(Boolean.TRUE.equals(m.getCriancaAte6Anos()))
                 .confirmadoRsvp(m.getConfirmadoRsvp())
@@ -297,7 +297,6 @@ public class RecepcaoCheckinController {
                 .dataHoraCheckin(m.getDataHoraCheckin())
                 .recepcionista(m.getRecepcionista())
                 .papel(m.getPapel())
-                .vinculo(m.getVinculo())
                 .participaCortejo(m.getParticipaCortejo())
                 .build();
     }

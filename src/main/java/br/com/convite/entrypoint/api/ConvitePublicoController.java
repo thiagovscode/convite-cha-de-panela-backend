@@ -97,7 +97,7 @@ public class ConvitePublicoController {
 
         // 2. SEGUNDO NÍVEL: Busca membro exclusivamente dentro do array de membros do convite pelo ID do membro
         MembroConvite membro = (convite.getMembros() != null ? convite.getMembros().stream() : java.util.stream.Stream.<MembroConvite>empty())
-                .filter(m -> m.getId() != null && m.getId().trim().equalsIgnoreCase(membroId.trim()))
+                .filter(m -> m.getId() != null && m.getId().toString().trim().equalsIgnoreCase(membroId.trim()))
                 .findFirst()
                 .orElseThrow(() -> new ConvidadoNaoEncontradoException("Convidado não pertence a este convite"));
 
@@ -107,7 +107,7 @@ public class ConvitePublicoController {
         resp.put("familia", convite.getFamilia());
         resp.put("statusConvite", convite.getStatus());
         resp.put("convidado", MembroPublicoResponse.builder()
-                .id(membro.getId())
+                .id(membro.getId() != null ? membro.getId().toString() : null)
                 .nome(membro.getNome())
                 .criancaAte6Anos(Boolean.TRUE.equals(membro.getCriancaAte6Anos()))
                 .confirmadoRsvp(membro.getConfirmadoRsvp())
@@ -144,10 +144,10 @@ public class ConvitePublicoController {
                 .familia(convite.getFamilia())
                 .telefone(convite.getTelefone())
                 .status(convite.getStatus() != null ? convite.getStatus() : "PENDENTE")
-                .papel(convite.getPapel())
+                .papel(null)
                 .membros(convite.getMembros() != null ? convite.getMembros().stream()
                         .map(m -> MembroPublicoResponse.builder()
-                                .id(m.getId())
+                                .id(m.getId() != null ? m.getId().toString() : null)
                                 .nome(m.getNome())
                                 .criancaAte6Anos(Boolean.TRUE.equals(m.getCriancaAte6Anos()))
                                 .confirmadoRsvp(m.getConfirmadoRsvp())

@@ -6,6 +6,7 @@ import br.com.convite.exception.ConviteNaoEncontradoException;
 import br.com.convite.exception.RegraDeNegocioException;
 import br.com.convite.gateway.ConviteGateway;
 import br.com.convite.usecase.AtualizarConviteUseCase;
+import br.com.convite.usecase.DefinirParCortejoUseCase;
 import br.com.convite.usecase.SincronizarCortejoConviteUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class AtualizarConviteUseCaseImpl implements AtualizarConviteUseCase {
 
     private final ConviteGateway conviteGateway;
     private final SincronizarCortejoConviteUseCase sincronizarCortejoConviteUseCase;
+    private final DefinirParCortejoUseCase definirParCortejoUseCase;
 
     @Override
     public Convite executar(Convite dados) {
@@ -39,7 +41,6 @@ public class AtualizarConviteUseCaseImpl implements AtualizarConviteUseCase {
 
         existente.setTelefone(dados.getTelefone() != null && !dados.getTelefone().isBlank() ? dados.getTelefone().trim() : null);
         existente.setEmail(dados.getEmail() != null && !dados.getEmail().isBlank() ? dados.getEmail().trim() : null);
-        existente.setPapel(dados.getPapel() != null && !dados.getPapel().isBlank() ? dados.getPapel().trim() : null);
         existente.setObservacao(dados.getObservacao() != null && !dados.getObservacao().isBlank() ? dados.getObservacao().trim() : null);
         existente.setUpdatedAt(LocalDateTime.now());
 
@@ -52,6 +53,15 @@ public class AtualizarConviteUseCaseImpl implements AtualizarConviteUseCase {
         // Atualiza participantes do cortejo correspondentes
         sincronizarCortejoConviteUseCase.executar(atualizado);
 
+        // Sincroniza pares recíprocos se informados
+        if (atualizado.getMembros() != null) {
+            for (MembroConvite m : atualizado.getMembros()) {
+                if (m.getPar() != null && !m.getPar().isBlank()) {
+                    definirParCortejoUseCase.executar(atualizado.getCodigo(), m.getId() != null ? m.getId().toString() : null, m.getNome(), m.getPar());
+                }
+            }
+        }
+
         return atualizado;
     }
 
@@ -61,7 +71,7 @@ public class AtualizarConviteUseCaseImpl implements AtualizarConviteUseCase {
 
         if (existentes != null) {
             for (MembroConvite m : existentes) {
-                if (m.getId() != null) mapaExistentesPorId.put(m.getId(), m);
+                if (m.getId() != null) mapaExistentesPorId.put(m.getId().toString(), m);
                 if (m.getNome() != null) mapaExistentesPorNome.put(m.getNome().trim().toLowerCase(), m);
             }
         }
@@ -70,23 +80,22 @@ public class AtualizarConviteUseCaseImpl implements AtualizarConviteUseCase {
         for (MembroConvite m : novos) {
             if (m.getNome() == null || m.getNome().trim().isBlank()) continue;
 
-            String id = (m.getId() != null && !m.getId().isBlank()) ? m.getId().trim() : null;
+            String idInformado = (m.getId() != null) ? m.getId().toString() : null;
             MembroConvite antigo = null;
-            if (id != null) {
-                antigo = mapaExistentesPorId.get(id);
+            if (idInformado != null) {
+                antigo = mapaExistentesPorId.get(idInformado);
             }
             if (antigo == null) {
                 antigo = mapaExistentesPorNome.get(m.getNome().trim().toLowerCase());
             }
 
-            String finalId = id != null ? id : (antigo != null && antigo.getId() != null ? antigo.getId() : UUID.randomUUID().toString());
+            UUID finalId = m.getId() != null ? m.getId() : (antigo != null && antigo.getId() != null ? antigo.getId() : UUID.randomUUID());
 
             resultado.add(MembroConvite.builder()
                     .id(finalId)
                     .nome(m.getNome().trim())
                     .criancaAte6Anos(Boolean.TRUE.equals(m.getCriancaAte6Anos()))
-                    .papel(m.getPapel() != null ? m.getPapel().trim() : null)
-                    .vinculo(m.getVinculo() != null ? m.getVinculo().trim() : null)
+                    .papel(m.getPapel() != null && !m.getPapel().isBlank() ? m.getPapel() : (antigo != null ? antigo.getPapel() : null))
                     .par(m.getPar() != null && !m.getPar().isBlank() ? m.getPar().trim() : (antigo != null ? antigo.getPar() : null))
                     .participaCortejo(m.getParticipaCortejo() != null ? m.getParticipaCortejo() : (antigo != null ? antigo.getParticipaCortejo() : null))
                     .confirmadoRsvp(antigo != null ? antigo.getConfirmadoRsvp() : null)

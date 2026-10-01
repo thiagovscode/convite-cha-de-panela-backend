@@ -38,10 +38,7 @@ class AdminConviteControllerTest {
     private CalcularMetricasCasamentoUseCase calcularMetricasCasamentoUseCase;
 
     @Mock
-    private ConviteGateway conviteGateway;
-
-    @Mock
-    private SincronizarCortejoConviteUseCase sincronizarCortejoConviteUseCase;
+    private br.com.convite.usecase.DefinirParCortejoUseCase definirParCortejoUseCase;
 
     @Mock
     private ResetarRsvpConviteUseCase resetarRsvpConviteUseCase;
@@ -57,8 +54,7 @@ class AdminConviteControllerTest {
                 atualizarConviteUseCase,
                 excluirConviteUseCase,
                 calcularMetricasCasamentoUseCase,
-                conviteGateway,
-                sincronizarCortejoConviteUseCase,
+                definirParCortejoUseCase,
                 resetarRsvpConviteUseCase
         );
     }

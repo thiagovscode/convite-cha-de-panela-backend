@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,8 +60,8 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
     @DisplayName("Deve processar confirmação de RSVP com sucesso e atualizar convite")
     void deveProcessarConfirmacaoComSucesso() {
         List<MembroConvite> membros = new ArrayList<>();
-        membros.add(MembroConvite.builder().id("m1").nome("Lucas Santos").build());
-        membros.add(MembroConvite.builder().id("m2").nome("Mariana Santos").criancaAte6Anos(false).build());
+        membros.add(MembroConvite.builder().id(UUID.randomUUID()).nome("Lucas Santos").build());
+        membros.add(MembroConvite.builder().id(UUID.randomUUID()).nome("Mariana Santos").criancaAte6Anos(false).build());
 
         Convite convite = Convite.builder()
                 .id("c1")
@@ -133,8 +134,8 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
     @DisplayName("Deve atualizar flag de criancaAte6Anos no membro do convite quando assinalada no RSVP")
     void deveAtualizarFlagCriancaNoMembroQuandoInformadaNoRsvp() {
         List<MembroConvite> membros = new ArrayList<>();
-        membros.add(MembroConvite.builder().id("m1").nome("Carlos Silva").criancaAte6Anos(false).build());
-        membros.add(MembroConvite.builder().id("m2").nome("Enzo Silva").criancaAte6Anos(false).build());
+        membros.add(MembroConvite.builder().id(UUID.randomUUID()).nome("Carlos Silva").criancaAte6Anos(false).build());
+        membros.add(MembroConvite.builder().id(UUID.randomUUID()).nome("Enzo Silva").criancaAte6Anos(false).build());
 
         Convite convite = Convite.builder()
                 .id("c2")
@@ -167,9 +168,11 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
     @Test
     @DisplayName("Deve distinguir corretamente membros homônimos com o mesmo nome através do ID")
     void deveDistinguirCorretamenteMembrosHomonimosComMesmoNomePorId() {
+        UUID idPai = UUID.randomUUID();
+        UUID idFilho = UUID.randomUUID();
         List<MembroConvite> membros = new ArrayList<>();
-        membros.add(MembroConvite.builder().id("id_pai").nome("Gabriel Oliveira").criancaAte6Anos(false).build());
-        membros.add(MembroConvite.builder().id("id_filho").nome("Gabriel Oliveira").criancaAte6Anos(false).build());
+        membros.add(MembroConvite.builder().id(idPai).nome("Gabriel Oliveira").criancaAte6Anos(false).build());
+        membros.add(MembroConvite.builder().id(idFilho).nome("Gabriel Oliveira").criancaAte6Anos(false).build());
 
         Convite convite = Convite.builder()
                 .id("c3")
@@ -187,7 +190,7 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
 
         // Filho é confirmado como criança de até 6 anos pelo ID
         var acomp = List.of(
-                AcompanhanteCasamento.builder().id("id_filho").nome("Gabriel Oliveira").criancaAte6Anos(true).build()
+                AcompanhanteCasamento.builder().id(idFilho.toString()).nome("Gabriel Oliveira").criancaAte6Anos(true).build()
         );
 
         var resultado = useCase.executar("GABRIEL", "Gabriel Oliveira", "11999991111", null, true, acomp, null);
@@ -209,8 +212,8 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
     @DisplayName("Deve confirmar presenca normalmente mesmo que o membro titular nao compareca")
     void deveConfirmarPresencaMesmoQueTitularNaoCompareca() {
         List<MembroConvite> membros = new ArrayList<>();
-        membros.add(MembroConvite.builder().id("m1").nome("Carlos Silva").build());
-        membros.add(MembroConvite.builder().id("m2").nome("Ana Paula Silva").criancaAte6Anos(false).build());
+        membros.add(MembroConvite.builder().id(UUID.randomUUID()).nome("Carlos Silva").build());
+        membros.add(MembroConvite.builder().id(UUID.randomUUID()).nome("Ana Paula Silva").criancaAte6Anos(false).build());
 
         Convite convite = Convite.builder()
                 .id("c4")
@@ -310,7 +313,7 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
                 .codigo("PRAZO")
                 .familia("Família Teste")
                 .status("PENDENTE")
-                .membros(List.of(MembroConvite.builder().id("m1").nome("Lucas").build()))
+                .membros(List.of(MembroConvite.builder().id(UUID.randomUUID()).nome("Lucas").build()))
                 .build();
 
         when(conviteGateway.buscarPorCodigo("PRAZO")).thenReturn(Optional.of(convite));
@@ -359,7 +362,7 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
                 .codigo("ESTENDIDO")
                 .familia("Família Estendida")
                 .status("PENDENTE")
-                .membros(List.of(MembroConvite.builder().id("m1").nome("Mariana").build()))
+                .membros(List.of(MembroConvite.builder().id(UUID.randomUUID()).nome("Mariana").build()))
                 .build();
 
         when(conviteGateway.buscarPorCodigo("ESTENDIDO")).thenReturn(Optional.of(convite));

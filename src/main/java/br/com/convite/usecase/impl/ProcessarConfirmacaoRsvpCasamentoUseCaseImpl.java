@@ -210,16 +210,16 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
                     String respondenteClean = rsvp.getNome() != null ? limparNomeParaComparacao(rsvp.getNome()) : "";
 
                     boolean confirmado;
-                    if (m.getId() != null && !m.getId().isBlank() && !idsConfirmados.isEmpty()) {
+                    if (m.getId() != null && !idsConfirmados.isEmpty()) {
                         // Confirma se o ID estiver nos selecionados ou se o nome bater com o contato respondente
-                        confirmado = idsConfirmados.contains(m.getId()) || respondenteClean.equals(mClean) || nomesConfirmados.contains(mClean);
+                        confirmado = idsConfirmados.contains(m.getId().toString()) || respondenteClean.equals(mClean) || nomesConfirmados.contains(mClean);
                     } else {
                         confirmado = nomesConfirmados.contains(mClean) || respondenteClean.equals(mClean);
                     }
                     m.setConfirmadoRsvp(confirmado);
 
-                    if (m.getId() != null && mapaCriancaPorId.containsKey(m.getId())) {
-                        m.setCriancaAte6Anos(mapaCriancaPorId.get(m.getId()));
+                    if (m.getId() != null && mapaCriancaPorId.containsKey(m.getId().toString())) {
+                        m.setCriancaAte6Anos(mapaCriancaPorId.get(m.getId().toString()));
                     } else if (mapaCriancaPorId.isEmpty() && mapaCriancaPorNome.containsKey(mClean)) {
                         m.setCriancaAte6Anos(mapaCriancaPorNome.get(mClean));
                     }
@@ -266,7 +266,7 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
             for (MembroConvite m : convite.getMembros()) {
                 if (m.getPapel() != null && !m.getPapel().isBlank()) {
                     boolean confirmado = Boolean.TRUE.equals(m.getConfirmadoRsvp());
-                    String vinculoFinal = m.getVinculo() != null && !m.getVinculo().isBlank() ? m.getVinculo() : "Noivo";
+                    String vinculoFinal = "Casal";
                     var partOpt = participanteCerimoniaGateway.buscarPorNome(m.getNome().trim());
                     var part = partOpt.orElseGet(() -> ParticipanteCerimonia.builder()
                             .nome(m.getNome().trim())

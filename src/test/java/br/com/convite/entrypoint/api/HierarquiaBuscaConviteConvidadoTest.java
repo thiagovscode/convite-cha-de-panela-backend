@@ -45,6 +45,9 @@ class HierarquiaBuscaConviteConvidadoTest {
     private Convite conviteA;
     private Convite conviteB;
 
+    private static final java.util.UUID MEMBRO_ID_A = java.util.UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final java.util.UUID MEMBRO_ID_B = java.util.UUID.fromString("22222222-2222-2222-2222-222222222222");
+
     @BeforeEach
     void setUp() {
         controller = new ConvitePublicoController(
@@ -62,7 +65,7 @@ class HierarquiaBuscaConviteConvidadoTest {
                 .status("PENDENTE")
                 .membros(List.of(
                         MembroConvite.builder()
-                                .id("1")
+                                .id(MEMBRO_ID_A)
                                 .nome("Madalena Mouraria")
                                 .criancaAte6Anos(false)
                                 .papel("Convidado")
@@ -78,7 +81,7 @@ class HierarquiaBuscaConviteConvidadoTest {
                 .status("PENDENTE")
                 .membros(List.of(
                         MembroConvite.builder()
-                                .id("2")
+                                .id(MEMBRO_ID_B)
                                 .nome("Roberto Silva")
                                 .criancaAte6Anos(false)
                                 .papel("Convidado")
@@ -111,7 +114,7 @@ class HierarquiaBuscaConviteConvidadoTest {
     void caso2_buscarConviteEConvidadoValido() {
         when(conviteGateway.buscarPorCodigo("tn-pwcsuf")).thenReturn(Optional.of(conviteA));
 
-        ResponseEntity<?> response = controller.buscarConvidadoPorConviteEId("tn-pwcsuf", "1");
+        ResponseEntity<?> response = controller.buscarConvidadoPorConviteEId("tn-pwcsuf", MEMBRO_ID_A.toString());
 
         assertNotNull(response);
         assertEquals(200, response.getStatusCode().value());
@@ -122,7 +125,7 @@ class HierarquiaBuscaConviteConvidadoTest {
 
         MembroPublicoResponse membro = (MembroPublicoResponse) body.get("convidado");
         assertNotNull(membro);
-        assertEquals("1", membro.getId());
+        assertEquals(MEMBRO_ID_A.toString(), membro.getId());
         assertEquals("Madalena Mouraria", membro.getNome());
     }
 
@@ -147,7 +150,7 @@ class HierarquiaBuscaConviteConvidadoTest {
         // Busca conviteA ("tn-pwcsuf") + membro "2" (que pertence ao conviteB)
         ConvidadoNaoEncontradoException ex = assertThrows(
                 ConvidadoNaoEncontradoException.class,
-                () -> controller.buscarConvidadoPorConviteEId("tn-pwcsuf", "2")
+                () -> controller.buscarConvidadoPorConviteEId("tn-pwcsuf", MEMBRO_ID_B.toString())
         );
 
         assertTrue(ex.getMessage().contains("Convidado não pertence a este convite"));

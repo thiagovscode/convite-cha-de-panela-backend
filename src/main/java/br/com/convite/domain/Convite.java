@@ -12,6 +12,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
 public class Convite {
     private String id;
     private String codigo;
@@ -21,7 +22,6 @@ public class Convite {
     private List<MembroConvite> membros;
     private String status; // PENDENTE, CONFIRMADO, RECUSADO
     private String observacao;
-    private String papel;
     private LocalDateTime dataConfirmacao;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

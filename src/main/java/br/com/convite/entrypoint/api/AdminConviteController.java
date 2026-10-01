@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -31,8 +32,7 @@ public class AdminConviteController {
     private final br.com.convite.usecase.AtualizarConviteUseCase atualizarConviteUseCase;
     private final ExcluirConviteUseCase excluirConviteUseCase;
     private final CalcularMetricasCasamentoUseCase calcularMetricasCasamentoUseCase;
-    private final br.com.convite.gateway.ConviteGateway conviteGateway;
-    private final br.com.convite.usecase.SincronizarCortejoConviteUseCase sincronizarCortejoConviteUseCase;
+    private final br.com.convite.usecase.DefinirParCortejoUseCase definirParCortejoUseCase;
     private final br.com.convite.usecase.ResetarRsvpConviteUseCase resetarRsvpConviteUseCase;
 
     @GetMapping
@@ -67,61 +67,12 @@ public class AdminConviteController {
         String nomeMembro = body.get("nomeMembro");
         String nomePar = body.get("nomePar");
 
-        java.util.Optional<Convite> optConvite = java.util.Optional.empty();
-        if (codigoConvite != null && !codigoConvite.isBlank()) {
-            optConvite = conviteGateway.buscarPorCodigo(codigoConvite.trim());
-        }
-        if (optConvite.isEmpty() && nomeMembro != null && !nomeMembro.isBlank()) {
-            optConvite = conviteGateway.listarTodos().stream()
-                    .filter(c -> c.getMembros() != null && c.getMembros().stream().anyMatch(m -> nomeMembro.equalsIgnoreCase(m.getNome())))
-                    .findFirst();
-        }
-
-        if (optConvite.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of("success", false, "message", "Convite não encontrado."));
-        }
-
-        Convite convitePrincipal = optConvite.get();
-        String finalNomeMembro = nomeMembro;
-
-        if (convitePrincipal.getMembros() != null) {
-            for (MembroConvite m : convitePrincipal.getMembros()) {
-                boolean match = (membroId != null && membroId.equals(m.getId())) 
-                        || (finalNomeMembro != null && finalNomeMembro.equalsIgnoreCase(m.getNome()));
-                if (match) {
-                    m.setPar(nomePar != null && !nomePar.isBlank() ? nomePar.trim() : null);
-                    if (finalNomeMembro == null) finalNomeMembro = m.getNome();
-                }
-            }
-            conviteGateway.salvar(convitePrincipal);
-            sincronizarCortejoConviteUseCase.executar(convitePrincipal);
-        }
-
-        // Se informou um par, atualiza reciprocamente no convite do par se existir cadastrado
-        // Usa busca direcionada por nome de membro em vez de listarTodos() para evitar N+1
-        if (nomePar != null && !nomePar.isBlank() && finalNomeMembro != null) {
-            String buscaPar = nomePar.trim();
-            for (Convite outro : conviteGateway.buscarPorNomeMembro(buscaPar)) {
-                if (!outro.getCodigo().equalsIgnoreCase(convitePrincipal.getCodigo()) && outro.getMembros() != null) {
-                    boolean alterou = false;
-                    for (MembroConvite m : outro.getMembros()) {
-                        if (buscaPar.equalsIgnoreCase(m.getNome())) {
-                            m.setPar(finalNomeMembro);
-                            alterou = true;
-                        }
-                    }
-                    if (alterou) {
-                        conviteGateway.salvar(outro);
-                        sincronizarCortejoConviteUseCase.executar(outro);
-                    }
-                }
-            }
-        }
+        Convite atualizado = definirParCortejoUseCase.executar(codigoConvite, membroId, nomeMembro, nomePar);
 
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "Par do cortejo atualizado com sucesso!",
-                "convite", convitePrincipal
+                "convite", atualizado
         ));
     }
 
@@ -186,7 +137,6 @@ public class AdminConviteController {
                 .familia(req.getFamilia())
                 .telefone(req.getTelefone())
                 .email(req.getEmail())
-                .papel(req.getPapel())
                 .observacao(req.getObservacao())
                 .membros(req.getMembros() != null ? req.getMembros().stream()
                         .map(this::toMembroDomain)
@@ -253,12 +203,23 @@ public class AdminConviteController {
     }
 
     private MembroConvite toMembroDomain(MembroAdminRequest req) {
+        UUID membroId = null;
+        if (req.getId() != null && !req.getId().isBlank() && !req.getId().trim().equals("1") && !req.getId().trim().matches("^\\d+$")) {
+            try {
+                membroId = UUID.fromString(req.getId().trim());
+            } catch (Exception ignored) {
+                membroId = UUID.nameUUIDFromBytes(req.getId().trim().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+        }
+        if (membroId == null) {
+            membroId = UUID.randomUUID();
+        }
+
         return MembroConvite.builder()
-                .id(req.getId())
+                .id(membroId)
                 .nome(req.getNome())
                 .criancaAte6Anos(Boolean.TRUE.equals(req.getCriancaAte6Anos()))
                 .papel(req.getPapel())
-                .vinculo(req.getVinculo())
                 .par(req.getPar())
                 .participaCortejo(req.getParticipaCortejo())
                 .build();

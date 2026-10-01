@@ -34,14 +34,37 @@ public class ConviteGatewayImpl implements ConviteGateway {
         this.mongoTemplate = mongoTemplate;
     }
 
+    private Convite sanitizarConvite(Convite convite) {
+        if (convite == null) return null;
+        if (convite.getMembros() != null) {
+            for (br.com.convite.domain.MembroConvite m : convite.getMembros()) {
+                if (m.getId() == null) {
+                    m.setId(UUID.randomUUID());
+                }
+                if (m.getPapel() == null || m.getPapel().isBlank()) {
+                    m.setPapel("Convidado");
+                }
+            }
+        }
+        return convite;
+    }
+
+    private List<Convite> sanitizarLista(List<Convite> lista) {
+        if (lista == null) return Collections.emptyList();
+        for (Convite c : lista) {
+            sanitizarConvite(c);
+        }
+        return lista;
+    }
+
     @Override
     public List<Convite> listarTodos() {
         try {
-            return mapper.toDomainList(repository.findAll());
+            return sanitizarLista(mapper.toDomainList(repository.findAll()));
         } catch (Exception ex) {
             log.error("Erro ao listar convites via repository.findAll(): {}. Ativando recuperação documento a documento...", ex.getMessage());
             if (mongoTemplate != null) {
-                return listarTodosResiliente();
+                return sanitizarLista(listarTodosResiliente());
             }
             return Collections.emptyList();
         }
@@ -50,13 +73,13 @@ public class ConviteGatewayImpl implements ConviteGateway {
     @Override
     public Optional<Convite> buscarPorCodigo(String codigo) {
         if (codigo == null || codigo.isBlank()) return Optional.empty();
-        return repository.findFirstByCodigoIgnoreCase(codigo.trim()).map(mapper::toDomain);
+        return repository.findFirstByCodigoIgnoreCase(codigo.trim()).map(mapper::toDomain).map(this::sanitizarConvite);
     }
 
     @Override
     public Optional<Convite> buscarPorId(String id) {
         if (id == null || id.isBlank()) return Optional.empty();
-        return repository.findById(id.trim()).map(mapper::toDomain);
+        return repository.findById(id.trim()).map(mapper::toDomain).map(this::sanitizarConvite);
     }
 
     @Override
@@ -65,22 +88,22 @@ public class ConviteGatewayImpl implements ConviteGateway {
         if (id != null && !id.isBlank() && codigo != null && !codigo.isBlank()) {
             Optional<ConviteCasamentoEntity> byId = repository.findById(id.trim());
             if (byId.isPresent() && byId.get().getCodigo() != null && byId.get().getCodigo().equalsIgnoreCase(codigo.trim())) {
-                return byId.map(mapper::toDomain);
+                return byId.map(mapper::toDomain).map(this::sanitizarConvite);
             }
             Optional<ConviteCasamentoEntity> byCode = repository.findFirstByCodigoIgnoreCase(codigo.trim());
             if (byCode.isPresent() && byCode.get().getId() != null && byCode.get().getId().equals(id.trim())) {
-                return byCode.map(mapper::toDomain);
+                return byCode.map(mapper::toDomain).map(this::sanitizarConvite);
             }
         }
         // 2. Se falhar ou apenas um foi informado, busca por ID
         if (id != null && !id.isBlank()) {
             Optional<ConviteCasamentoEntity> byId = repository.findById(id.trim());
-            if (byId.isPresent()) return byId.map(mapper::toDomain);
+            if (byId.isPresent()) return byId.map(mapper::toDomain).map(this::sanitizarConvite);
         }
         // 3. Fallback para Código
         if (codigo != null && !codigo.isBlank()) {
             Optional<ConviteCasamentoEntity> byCode = repository.findFirstByCodigoIgnoreCase(codigo.trim());
-            if (byCode.isPresent()) return byCode.map(mapper::toDomain);
+            if (byCode.isPresent()) return byCode.map(mapper::toDomain).map(this::sanitizarConvite);
         }
         return Optional.empty();
     }
@@ -96,11 +119,11 @@ public class ConviteGatewayImpl implements ConviteGateway {
         String t = termo.trim();
         // 1. Tenta por código
         Optional<ConviteCasamentoEntity> byCode = repository.findFirstByCodigoIgnoreCase(t);
-        if (byCode.isPresent()) return byCode.map(mapper::toDomain);
+        if (byCode.isPresent()) return byCode.map(mapper::toDomain).map(this::sanitizarConvite);
         // 2. Tenta por ID
         try {
             Optional<ConviteCasamentoEntity> byId = repository.findById(t);
-            if (byId.isPresent()) return byId.map(mapper::toDomain);
+            if (byId.isPresent()) return byId.map(mapper::toDomain).map(this::sanitizarConvite);
         } catch (Exception ignored) {
             // Em caso de ID em formato inválido para o MongoDB
         }
@@ -119,7 +142,7 @@ public class ConviteGatewayImpl implements ConviteGateway {
         }
         // NÍVEL 2: Busca o membro pelo ID dentro de convite.membros
         return conviteOpt.get().getMembros().stream()
-                .filter(m -> m.getId() != null && m.getId().trim().equalsIgnoreCase(membroId.trim()))
+                .filter(m -> m.getId() != null && m.getId().toString().trim().equalsIgnoreCase(membroId.trim()))
                 .findFirst();
     }
 
@@ -134,7 +157,7 @@ public class ConviteGatewayImpl implements ConviteGateway {
         // Escapa caracteres especiais de regex antes de passar para o MongoDB
         String termoSeguro = Pattern.quote(termo.trim());
         List<ConviteCasamentoEntity> entities = repository.buscarPorTermoGeral(termoSeguro);
-        return mapper.toDomainList(entities);
+        return sanitizarLista(mapper.toDomainList(entities));
     }
 
     @Override
@@ -142,14 +165,15 @@ public class ConviteGatewayImpl implements ConviteGateway {
         if (nomeMembro == null || nomeMembro.isBlank()) return List.of();
         // Usa Pattern.quote para busca literal do nome (evita regex injection)
         String nomeRegex = java.util.regex.Pattern.quote(nomeMembro.trim());
-        return mapper.toDomainList(repository.findByMembrosNomeRegex(nomeRegex));
+        return sanitizarLista(mapper.toDomainList(repository.findByMembrosNomeRegex(nomeRegex)));
     }
 
     @Override
     public Convite salvar(Convite convite) {
-        ConviteCasamentoEntity entity = mapper.toEntity(convite);
+        Convite sanitizado = sanitizarConvite(convite);
+        ConviteCasamentoEntity entity = mapper.toEntity(sanitizado);
         ConviteCasamentoEntity salvo = repository.save(entity);
-        return mapper.toDomain(salvo);
+        return sanitizarConvite(mapper.toDomain(salvo));
     }
 
     @Override
@@ -193,7 +217,6 @@ public class ConviteGatewayImpl implements ConviteGateway {
         String telefone = doc.getString("telefone");
         String email = doc.getString("email");
         String status = doc.getString("status") != null ? doc.getString("status") : "PENDENTE";
-        String papel = doc.getString("papel");
         String observacao = doc.getString("observacao");
 
         List<br.com.convite.domain.MembroConvite> membros = new ArrayList<>();
@@ -201,20 +224,31 @@ public class ConviteGatewayImpl implements ConviteGateway {
         if (membrosRaw instanceof List<?> lista) {
             for (Object item : lista) {
                 if (item instanceof org.bson.Document mDoc) {
-                    String mId = mDoc.get("_id") != null ? String.valueOf(mDoc.get("_id"))
-                            : (mDoc.get("id") != null ? String.valueOf(mDoc.get("id")) : UUID.randomUUID().toString());
+                    Object rawId = mDoc.get("_id") != null ? mDoc.get("_id") : mDoc.get("id");
+                    UUID mIdUuid;
+                    if (rawId instanceof UUID u) {
+                        mIdUuid = u;
+                    } else if (rawId != null && !String.valueOf(rawId).isBlank() && !String.valueOf(rawId).equals("1")) {
+                        try {
+                            mIdUuid = UUID.fromString(String.valueOf(rawId));
+                        } catch (Exception ignored) {
+                            mIdUuid = UUID.randomUUID();
+                        }
+                    } else {
+                        mIdUuid = UUID.randomUUID();
+                    }
+
                     String mNome = mDoc.getString("nome");
                     Boolean crianca = Boolean.TRUE.equals(mDoc.get("criancaAte6Anos"));
                     Boolean rsvp = mDoc.get("confirmadoRsvp") != null ? Boolean.TRUE.equals(mDoc.get("confirmadoRsvp")) : null;
                     Boolean checkin = Boolean.TRUE.equals(mDoc.get("presenteCheckin"));
                     membros.add(br.com.convite.domain.MembroConvite.builder()
-                            .id(mId)
+                            .id(mIdUuid)
                             .nome(mNome != null ? mNome : "")
                             .criancaAte6Anos(crianca)
                             .confirmadoRsvp(rsvp)
                             .presenteCheckin(checkin)
                             .papel(mDoc.getString("papel"))
-                            .vinculo(mDoc.getString("vinculo"))
                             .par(mDoc.getString("par"))
                             .participaCortejo(Boolean.TRUE.equals(mDoc.get("participaCortejo")))
                             .build());
@@ -229,7 +263,6 @@ public class ConviteGatewayImpl implements ConviteGateway {
                 .telefone(telefone)
                 .email(email)
                 .status(status)
-                .papel(papel)
                 .observacao(observacao)
                 .membros(membros)
                 .build();

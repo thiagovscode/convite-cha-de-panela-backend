@@ -29,7 +29,6 @@ public class ConviteCasamentoEntity {
     private List<MembroConviteEntity> membros;
     private String status; // PENDENTE, CONFIRMADO, RECUSADO
     private String observacao;
-    private String papel; // Padrinhos, Pais dos Noivos, Família, etc.
     private LocalDateTime dataConfirmacao;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

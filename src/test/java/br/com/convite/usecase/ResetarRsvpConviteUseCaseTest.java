@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -50,14 +51,14 @@ class ResetarRsvpConviteUseCaseTest {
     void deveResetarConvitePorCodigoEIdsMembros() {
         List<MembroConvite> membros = new ArrayList<>();
         membros.add(MembroConvite.builder()
-                .id("membro-1")
+                .id(UUID.randomUUID())
                 .nome("Carlos")
                 .confirmadoRsvp(false)
                 .presenteCheckin(false)
                 .recepcionista("Portaria 1")
                 .build());
         membros.add(MembroConvite.builder()
-                .id("membro-2")
+                .id(UUID.randomUUID())
                 .nome("Fernanda")
                 .confirmadoRsvp(false)
                 .build());
