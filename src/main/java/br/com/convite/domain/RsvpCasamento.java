@@ -14,6 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class RsvpCasamento {
     private String id;
+    private String codigoConvite;
     private String nome;
     private String telefone;
     private String email;

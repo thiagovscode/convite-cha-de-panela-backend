@@ -1,7 +1,6 @@
 package br.com.convite.usecase.impl;
 
 import br.com.convite.domain.*;
-import br.com.convite.exception.ConfirmacaoDuplicadaException;
 import br.com.convite.exception.ConviteNaoEncontradoException;
 import br.com.convite.exception.RegraDeNegocioException;
 import br.com.convite.gateway.ConviteGateway;
@@ -23,13 +22,13 @@ import java.util.*;
 @Service
 public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarConfirmacaoRsvpCasamentoUseCase {
 
-    public static final LocalDateTime PRAZO_LIMITE_RSVP = LocalDateTime.of(2026, 12, 23, 23, 59, 59);
     public static final ZoneId FUSO_HORARIO = ZoneId.of("America/Sao_Paulo");
 
     private final ConviteGateway conviteGateway;
     private final ParticipanteCerimoniaGateway participanteCerimoniaGateway;
     private final FornecedorGateway fornecedorGateway;
     private final ConfirmarRsvpCasamentoUseCase confirmarRsvpCasamentoUseCase;
+    private final br.com.convite.gateway.ConfiguracaoEventoGateway configuracaoEventoGateway;
     private final Clock clock;
 
     @Autowired
@@ -37,9 +36,19 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
             ConviteGateway conviteGateway,
             ParticipanteCerimoniaGateway participanteCerimoniaGateway,
             FornecedorGateway fornecedorGateway,
+            ConfirmarRsvpCasamentoUseCase confirmarRsvpCasamentoUseCase,
+            br.com.convite.gateway.ConfiguracaoEventoGateway configuracaoEventoGateway
+    ) {
+        this(conviteGateway, participanteCerimoniaGateway, fornecedorGateway, confirmarRsvpCasamentoUseCase, configuracaoEventoGateway, Clock.system(FUSO_HORARIO));
+    }
+
+    public ProcessarConfirmacaoRsvpCasamentoUseCaseImpl(
+            ConviteGateway conviteGateway,
+            ParticipanteCerimoniaGateway participanteCerimoniaGateway,
+            FornecedorGateway fornecedorGateway,
             ConfirmarRsvpCasamentoUseCase confirmarRsvpCasamentoUseCase
     ) {
-        this(conviteGateway, participanteCerimoniaGateway, fornecedorGateway, confirmarRsvpCasamentoUseCase, Clock.system(FUSO_HORARIO));
+        this(conviteGateway, participanteCerimoniaGateway, fornecedorGateway, confirmarRsvpCasamentoUseCase, null, Clock.system(FUSO_HORARIO));
     }
 
     public ProcessarConfirmacaoRsvpCasamentoUseCaseImpl(
@@ -49,10 +58,22 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
             ConfirmarRsvpCasamentoUseCase confirmarRsvpCasamentoUseCase,
             Clock clock
     ) {
+        this(conviteGateway, participanteCerimoniaGateway, fornecedorGateway, confirmarRsvpCasamentoUseCase, null, clock);
+    }
+
+    public ProcessarConfirmacaoRsvpCasamentoUseCaseImpl(
+            ConviteGateway conviteGateway,
+            ParticipanteCerimoniaGateway participanteCerimoniaGateway,
+            FornecedorGateway fornecedorGateway,
+            ConfirmarRsvpCasamentoUseCase confirmarRsvpCasamentoUseCase,
+            br.com.convite.gateway.ConfiguracaoEventoGateway configuracaoEventoGateway,
+            Clock clock
+    ) {
         this.conviteGateway = conviteGateway;
         this.participanteCerimoniaGateway = participanteCerimoniaGateway;
         this.fornecedorGateway = fornecedorGateway;
         this.confirmarRsvpCasamentoUseCase = confirmarRsvpCasamentoUseCase;
+        this.configuracaoEventoGateway = configuracaoEventoGateway;
         this.clock = clock != null ? clock : Clock.system(FUSO_HORARIO);
     }
 
@@ -67,8 +88,13 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
             String observacao
     ) {
         LocalDateTime agora = LocalDateTime.now(clock);
-        if (agora.isAfter(PRAZO_LIMITE_RSVP)) {
-            throw new RegraDeNegocioException("O prazo para confirmação ou alteração de presença encerrou em 23/12/2026. Por favor, entre em contato diretamente com os noivos.");
+        LocalDateTime prazoEfetivo = (configuracaoEventoGateway != null)
+                ? configuracaoEventoGateway.buscarPrazoRsvp().orElse(null)
+                : null;
+
+        if (prazoEfetivo != null && agora.isAfter(prazoEfetivo)) {
+            String formatado = prazoEfetivo.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            throw new RegraDeNegocioException("O prazo para confirmação de presença encerrou em " + formatado + ". Por favor, entre em contato diretamente com os noivos.");
         }
 
         if (codigoConvite == null || codigoConvite.isBlank()) {
@@ -79,12 +105,13 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
                 .or(() -> conviteGateway.buscarPorCodigoOuId(codigoConvite.trim()))
                 .orElseThrow(() -> new ConviteNaoEncontradoException(codigoConvite));
 
-        if ("CONFIRMADO".equalsIgnoreCase(convite.getStatus())) {
-            String telExistente = convite.getTelefone() != null ? convite.getTelefone().replaceAll("\\D", "") : "";
-            String telNovo = telefone != null ? telefone.replaceAll("\\D", "") : "";
-            if (!telExistente.isEmpty() && !telNovo.isEmpty() && !telExistente.equals(telNovo)) {
-                throw new ConfirmacaoDuplicadaException();
-            }
+        // REGRA: Após o primeiro registro de RSVP (CONFIRMADO ou RECUSADO), nenhuma alteração pública é permitida.
+        // O painel administrativo pode continuar alterando via /api/admin/** (requer ADMIN).
+        if ("CONFIRMADO".equalsIgnoreCase(convite.getStatus()) || "RECUSADO".equalsIgnoreCase(convite.getStatus())) {
+            throw new RegraDeNegocioException(
+                "Sua resposta já foi registrada e não pode ser alterada. " +
+                "Para qualquer ajuste, entre em contato diretamente com os noivos."
+            );
         }
 
         List<AcompanhanteCasamento> acompFinal = acompanhantes != null ? new ArrayList<>(acompanhantes) : new ArrayList<>();
@@ -102,6 +129,7 @@ public class ProcessarConfirmacaoRsvpCasamentoUseCaseImpl implements ProcessarCo
         }
 
         RsvpCasamento rsvp = RsvpCasamento.builder()
+                .codigoConvite(convite.getCodigo())
                 .nome(nome != null ? nome.trim() : null)
                 .telefone(telefone != null ? telefone.trim() : null)
                 .email(email != null && !email.isBlank() ? email.trim() : null)

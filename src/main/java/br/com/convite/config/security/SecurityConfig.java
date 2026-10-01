@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/convites/fornecedor/*/membros").hasAnyRole("RECEPCAO", "ADMIN")
                 .requestMatchers("/api/convites/**").permitAll()
                 .requestMatchers("/api/rsvp/**").permitAll()
+                .requestMatchers("/api/configuracao-evento/**").permitAll()
                 .requestMatchers("/api/classificacoes/**").permitAll()
                 .requestMatchers("/api/recepcao/login").permitAll()
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()

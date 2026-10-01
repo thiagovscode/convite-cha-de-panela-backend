@@ -77,9 +77,25 @@ public class RsvpCasamentoGatewayImpl implements RsvpCasamentoGateway {
     }
 
     @Override
+    public Optional<RsvpCasamento> buscarPorCodigoConvite(String codigoConvite) {
+        if (codigoConvite == null || codigoConvite.isBlank()) return Optional.empty();
+        return repository.findByCodigoConvite(codigoConvite.trim()).map(mapper::toDomain);
+    }
+
+    @Override
     public void deletar(String id) {
         if (id != null && !id.isBlank()) {
             repository.deleteById(id.trim());
+        }
+    }
+
+    @Override
+    public void deletarPorCodigoConvite(String codigoConvite) {
+        if (codigoConvite != null && !codigoConvite.isBlank()) {
+            try {
+                repository.deleteByCodigoConvite(codigoConvite.trim());
+            } catch (Exception ignored) {
+            }
         }
     }
 }

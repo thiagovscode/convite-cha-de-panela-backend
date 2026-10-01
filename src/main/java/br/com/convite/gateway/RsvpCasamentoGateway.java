@@ -8,5 +8,7 @@ public interface RsvpCasamentoGateway {
     RsvpCasamento salvarOuAtualizar(RsvpCasamento rsvp);
     List<RsvpCasamento> listarTodos();
     Optional<RsvpCasamento> buscarPorTelefone(String telefone);
+    Optional<RsvpCasamento> buscarPorCodigoConvite(String codigoConvite);
     void deletar(String id);
+    void deletarPorCodigoConvite(String codigoConvite);
 }

@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -112,7 +113,7 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
     }
 
     @Test
-    @DisplayName("Deve barrar tentativa de confirmação com telefone diferente quando já confirmado")
+    @DisplayName("Deve barrar tentativa pública de confirmação quando convite já estiver confirmado")
     void deveBloquearConflitoDeTelefoneEmConviteConfirmado() {
         Convite convite = Convite.builder()
                 .codigo("JA_CONFIRMADO")
@@ -122,9 +123,10 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
 
         when(conviteGateway.buscarPorCodigo("JA_CONFIRMADO")).thenReturn(Optional.of(convite));
 
-        assertThrows(br.com.convite.exception.ConfirmacaoDuplicadaException.class, () ->
+        RegraDeNegocioException ex = assertThrows(RegraDeNegocioException.class, () ->
                 useCase.executar("JA_CONFIRMADO", "Nome", "11911112222", null, true, null, null)
         );
+        assertTrue(ex.getMessage().contains("já foi registrada"));
     }
 
     @Test
@@ -249,8 +251,12 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
     }
 
     @Test
-    @DisplayName("Deve lancar excecao quando tentativa de confirmacao ocorrer apos o prazo limite de 23/12/2026")
+    @DisplayName("Deve lancar excecao quando tentativa de confirmacao ocorrer apos o prazo configurado")
     void deveLancarExcecaoQuandoDataEstiverAposPrazoLimite() {
+        var configuracaoGatewayMock = mock(br.com.convite.gateway.ConfiguracaoEventoGateway.class);
+        LocalDateTime prazoConfigurado = LocalDateTime.of(2026, 12, 23, 23, 59, 59);
+        when(configuracaoGatewayMock.buscarPrazoRsvp()).thenReturn(Optional.of(prazoConfigurado));
+
         // 2026-12-24T00:00:01 em SP (UTC-3 -> 2026-12-24T03:00:01Z)
         Clock clockExpirado = Clock.fixed(
                 Instant.parse("2026-12-24T03:00:01Z"),
@@ -262,6 +268,7 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
                 participanteCerimoniaGateway,
                 fornecedorGateway,
                 confirmarRsvpCasamentoUseCase,
+                configuracaoGatewayMock,
                 clockExpirado
         );
 
@@ -322,5 +329,92 @@ class ProcessarConfirmacaoRsvpCasamentoUseCaseTest {
         );
 
         assertTrue(resultado.presenca());
+    }
+
+    @Test
+    @DisplayName("Deve permitir confirmacao se estiver antes do prazo dinamico configurado no banco")
+    void devePermitirConfirmacaoAntesDoPrazoDinamico() {
+        var configuracaoGatewayMock = mock(br.com.convite.gateway.ConfiguracaoEventoGateway.class);
+        // Prazo estendido para 2027
+        LocalDateTime prazoFuturo = LocalDateTime.of(2027, 1, 15, 23, 59, 59);
+        when(configuracaoGatewayMock.buscarPrazoRsvp()).thenReturn(Optional.of(prazoFuturo));
+
+        // Clock em 2026-12-30 (após prazo padrão de 23/12/2026, mas antes do prazo configurado)
+        Clock clockAposPrazoPadrao = Clock.fixed(
+                Instant.parse("2026-12-30T15:00:00Z"),
+                ZoneId.of("America/Sao_Paulo")
+        );
+
+        var useCaseComPrazoEstendido = new ProcessarConfirmacaoRsvpCasamentoUseCaseImpl(
+                conviteGateway,
+                participanteCerimoniaGateway,
+                fornecedorGateway,
+                confirmarRsvpCasamentoUseCase,
+                configuracaoGatewayMock,
+                clockAposPrazoPadrao
+        );
+
+        Convite convite = Convite.builder()
+                .id("c_estendido")
+                .codigo("ESTENDIDO")
+                .familia("Família Estendida")
+                .status("PENDENTE")
+                .membros(List.of(MembroConvite.builder().id("m1").nome("Mariana").build()))
+                .build();
+
+        when(conviteGateway.buscarPorCodigo("ESTENDIDO")).thenReturn(Optional.of(convite));
+        when(confirmarRsvpCasamentoUseCase.executar(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(participanteCerimoniaGateway.listarTodos()).thenReturn(List.of());
+        when(fornecedorGateway.listarTodos()).thenReturn(List.of());
+
+        var resultado = useCaseComPrazoEstendido.executar(
+                "ESTENDIDO",
+                "Mariana",
+                "11977776666",
+                null,
+                true,
+                List.of(),
+                null
+        );
+
+        assertTrue(resultado.presenca());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear confirmacao quando passar do prazo dinamico antecipado no banco")
+    void deveBloquearConfirmacaoAposPrazoDinamicoAntecipado() {
+        var configuracaoGatewayMock = mock(br.com.convite.gateway.ConfiguracaoEventoGateway.class);
+        // Prazo antecipado para 01/12/2026
+        LocalDateTime prazoAntecipado = LocalDateTime.of(2026, 12, 1, 23, 59, 59);
+        when(configuracaoGatewayMock.buscarPrazoRsvp()).thenReturn(Optional.of(prazoAntecipado));
+
+        // Clock em 05/12/2026
+        Clock clockAposPrazoAntecipado = Clock.fixed(
+                Instant.parse("2026-12-05T15:00:00Z"),
+                ZoneId.of("America/Sao_Paulo")
+        );
+
+        var useCaseComPrazoAntecipado = new ProcessarConfirmacaoRsvpCasamentoUseCaseImpl(
+                conviteGateway,
+                participanteCerimoniaGateway,
+                fornecedorGateway,
+                confirmarRsvpCasamentoUseCase,
+                configuracaoGatewayMock,
+                clockAposPrazoAntecipado
+        );
+
+        RegraDeNegocioException ex = assertThrows(RegraDeNegocioException.class, () ->
+                useCaseComPrazoAntecipado.executar(
+                        "QUALQUER",
+                        "Teste",
+                        "11999998888",
+                        null,
+                        true,
+                        List.of(),
+                        null
+                )
+        );
+
+        assertTrue(ex.getMessage().contains("01/12/2026"));
     }
 }

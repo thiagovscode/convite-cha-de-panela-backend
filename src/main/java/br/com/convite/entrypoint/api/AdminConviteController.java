@@ -33,6 +33,7 @@ public class AdminConviteController {
     private final CalcularMetricasCasamentoUseCase calcularMetricasCasamentoUseCase;
     private final br.com.convite.gateway.ConviteGateway conviteGateway;
     private final br.com.convite.usecase.SincronizarCortejoConviteUseCase sincronizarCortejoConviteUseCase;
+    private final br.com.convite.usecase.ResetarRsvpConviteUseCase resetarRsvpConviteUseCase;
 
     @GetMapping
     public ResponseEntity<List<Convite>> listar(
@@ -193,6 +194,25 @@ public class AdminConviteController {
                 .build();
     }
 
+
+    /**
+     * Reseta o status de um convite para PENDENTE e remove o registro de RSVP associado.
+     * Permite que os noivos reenviem o convite para convidados que mudaram de ideia.
+     * Toda a regra de negócio fica isolada em ResetarRsvpConviteUseCase.
+     */
+    @PostMapping("/{codigoOuId}/resetar-rsvp")
+    public ResponseEntity<?> resetarRsvp(@PathVariable String codigoOuId) {
+        Convite salvo = resetarRsvpConviteUseCase.executar(codigoOuId);
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("success", true);
+        resp.put("message", "RSVP da família " + salvo.getFamilia() + " resetado com sucesso! O convite agora está Pendente.");
+        resp.put("codigo", salvo.getCodigo());
+        resp.put("status", salvo.getStatus());
+        resp.put("convite", salvo);
+
+        return ResponseEntity.ok(resp);
+    }
 
     @DeleteMapping("/{codigoOuId}")
     public ResponseEntity<?> excluir(@PathVariable String codigoOuId) {

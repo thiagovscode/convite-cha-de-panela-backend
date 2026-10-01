@@ -9,28 +9,19 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
+@Document(collection = "configuracao_evento")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "rsvps")
-public class RsvpCasamentoEntity {
+public class ConfiguracaoEventoEntity {
     @Id
     private String id;
 
     @Indexed(unique = true)
-    private String telefone;
+    private String chave; // Identificador lógico único (ex: "principal")
 
-    @Indexed
-    private String codigoConvite;
-
-    private String nome;
-    private String email;
-    private Boolean presenca;
-    private List<AcompanhanteCasamentoEntity> acompanhantes;
-    private String observacao;
-    private LocalDateTime createdAt;
+    private LocalDateTime prazoRsvp;
     private LocalDateTime updatedAt;
 }
