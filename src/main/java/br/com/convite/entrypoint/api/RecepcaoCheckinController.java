@@ -32,7 +32,7 @@ public class RecepcaoCheckinController {
     private final CheckinMembroFornecedorUseCase checkinMembroFornecedorUseCase;
     private final AdicionarMembroFornecedorUseCase adicionarMembroFornecedorUseCase;
     private final AutenticarUsuarioUseCase autenticarUsuarioUseCase;
-    private final br.com.convite.gateway.ConviteGateway conviteGateway;
+    private final ReverterCheckinConvidadoUseCase reverterCheckinConvidadoUseCase;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(
@@ -127,20 +127,7 @@ public class RecepcaoCheckinController {
         if (codigo == null || codigo.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Código do convite é obrigatório."));
         }
-        var opt = conviteGateway.buscarPorCodigoOuId(codigo.trim());
-        if (opt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("success", false, "message", "Convite não encontrado."));
-        }
-        Convite convite = opt.get();
-        if (convite.getMembros() != null) {
-            for (var m : convite.getMembros()) {
-                m.setPresenteCheckin(false);
-                m.setDataHoraCheckin(null);
-                m.setRecepcionista(null);
-            }
-        }
-        convite.setUpdatedAt(java.time.LocalDateTime.now());
-        Convite salvo = conviteGateway.salvar(convite);
+        Convite salvo = reverterCheckinConvidadoUseCase.executar(codigo.trim());
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "Check-in do convite revertido com sucesso.",

@@ -21,7 +21,7 @@ public class AdminFornecedorController {
     private final ExcluirFornecedorUseCase excluirFornecedorUseCase;
     private final AdicionarMembroFornecedorUseCase adicionarMembroFornecedorUseCase;
     private final RemoverMembroFornecedorUseCase removerMembroFornecedorUseCase;
-    private final br.com.convite.gateway.FornecedorGateway fornecedorGateway;
+    private final AtualizarMembroFornecedorUseCase atualizarMembroFornecedorUseCase;
 
     @GetMapping
     public ResponseEntity<List<Fornecedor>> listar() {
@@ -79,19 +79,7 @@ public class AdminFornecedorController {
             @PathVariable String fornecedorId,
             @PathVariable String membroId,
             @RequestBody MembroEquipeFornecedor dados) {
-        Fornecedor f = fornecedorGateway.buscarPorId(fornecedorId.trim())
-                .orElseThrow(() -> new br.com.convite.exception.FornecedorNaoEncontradoException(fornecedorId));
-        if (f.getEquipe() != null) {
-            for (MembroEquipeFornecedor m : f.getEquipe()) {
-                if (membroId.equalsIgnoreCase(m.getId())) {
-                    if (dados.getNome() != null && !dados.getNome().isBlank()) m.setNome(dados.getNome().trim());
-                    if (dados.getFuncao() != null) m.setFuncao(dados.getFuncao().trim());
-                    if (dados.getPermaneceAteFim() != null) m.setPermaneceAteFim(dados.getPermaneceAteFim());
-                    if (dados.getPresente() != null) m.setPresente(dados.getPresente());
-                }
-            }
-        }
-        Fornecedor salvo = fornecedorGateway.salvar(f);
+        Fornecedor salvo = atualizarMembroFornecedorUseCase.executar(fornecedorId, membroId, dados);
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "Membro atualizado com sucesso.",
